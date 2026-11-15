@@ -129,6 +129,35 @@ html[data-theme="dark"] .seg button.sel-sankaku{background:#4a3a14}
 #explain-body .sent.tts-now{background:#fdf0d5;border-radius:4px}
 html[data-theme="dark"] #explain-body .sent.tts-now{background:#4a3a14}
 footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);font-size:.82rem;line-height:1.6}
+/* 教科書表記の数式部品 */
+.mi{font-family:"Times New Roman","Hiragino Mincho ProN",serif;font-style:italic}
+.mf{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 .12em;line-height:1.18}
+.mf .mn{padding:0 .28em}
+.mf .md{border-top:.09em solid currentColor;padding:0 .28em}
+.rt{white-space:nowrap}
+.rt .ri{border-top:.065em solid currentColor;padding:0 .14em 0 .04em}
+.math sup{font-size:.72em}
+/* プリント（画面プレビューと印刷） */
+.paper{background:#fff;color:#222;border:1px solid var(--line);border-radius:6px;
+  padding:22px 20px;margin:0 0 16px;box-shadow:0 2px 10px rgba(60,50,20,.08)}
+html[data-theme="dark"] .paper{background:#fdfcf8}
+.paper h3{margin:0 0 4px;font-size:1.15rem}
+.paper .p-head{display:flex;gap:14px;flex-wrap:wrap;color:#555;font-size:.9rem;border-bottom:2px solid #888;padding-bottom:8px;margin-bottom:14px}
+.paper .prob{margin:0 0 18px;page-break-inside:avoid}
+.paper .prob .p-no{font-weight:700}
+.paper .prob .p-type{color:#777;font-size:.8rem;margin-left:8px}
+.paper .work{border-top:1px solid #ccc;margin-top:26px}
+.paper .work + .work{margin-top:22px}
+.paper figure{margin:8px 0}
+.paper .ans-steps{color:#333;line-height:1.7;margin:4px 0 0}
+#print-area{display:none}
+@media print{
+  @page{size:A4;margin:12mm}
+  body>*{display:none !important}
+  body>#print-area{display:block !important}
+  #print-area .paper{border:none;box-shadow:none;border-radius:0;padding:0;margin:0}
+  #print-area .sheet-answers{page-break-before:always}
+}
 </style>
 </head>
 <body>
@@ -144,10 +173,13 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
   <!-- ホーム -->
   <section class="view" id="view-home">
     <h2>答案の記録</h2>
+    <p class="note" style="margin-top:0">採点済みの答案を写真で残すと、ミスの原因を分析して、補強プリントで直していけます。</p>
     <div class="btn-row">
       <button class="btn" id="btn-new-exam">＋ 答案を追加する</button>
       <button class="btn sub" id="btn-global-analysis">分析を見る</button>
+      <button class="btn sub" id="btn-home-print">補強プリントを作る</button>
     </div>
+    <div id="home-review-note"></div>
     <div id="exam-list"></div>
     <div class="card">
       <h3 style="margin-top:0">保存の状況</h3>
@@ -182,7 +214,7 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
   <section class="view" id="view-confirm">
     <div class="stepper"><span>1. 写真</span><span class="now">2. 問題の入力</span><span>3. 確定</span></div>
     <h2>問題ごとの記録</h2>
-    <p class="note">問題ごとに、○×・配点・単元・間違えた原因を付けます。×と△の問題には原因タグを付けると、あとの分析と補強プリントに使えます。入力は自動で下書き保存されます。</p>
+    <p class="note">問題ごとに、○×・配点・単元・間違えた原因を付けます。×と△の問題には原因タグを付けると、あとの分析と補強プリントに使えます。入力は自動で下書き保存されるので、途中でも安心して戻れます。最後に「確定して保存する」を押すと、分析と解説に使えるようになります。</p>
     <div id="items-wrap"></div>
     <div class="btn-row">
       <button class="btn sub" id="btn-add-item">＋ 問題を追加</button>
@@ -204,10 +236,12 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
   <section class="view" id="view-detail">
     <h2 id="detail-title">答案</h2>
     <p class="note" id="detail-meta"></p>
+    <p class="note" style="margin-top:0">×と△の問題は、各問題の「解説を見る」から直し方が読めます。全体の弱点は「この答案の分析」へ。</p>
     <div id="detail-photos"></div>
     <div id="detail-items"></div>
     <div class="btn-row">
-      <button class="btn sub" id="btn-exam-analysis">この答案の分析</button>
+      <button class="btn" id="btn-exam-analysis">この答案の分析</button>
+      <button class="btn sub" id="btn-exam-print">補強プリントを作る</button>
       <button class="btn sub" id="btn-edit-items">問題を編集する</button>
       <button class="btn sub" id="btn-edit-photos">写真を追加・編集する</button>
       <button class="btn sub" id="btn-detail-home">ホームへ戻る</button>
@@ -221,6 +255,7 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
     <p class="note" id="analysis-meta"></p>
     <div id="analysis-body"></div>
     <div class="btn-row">
+      <button class="btn sub" id="btn-analysis-print">この分析を印刷する</button>
       <button class="btn sub" id="btn-analysis-back">戻る</button>
     </div>
   </section>
@@ -266,6 +301,57 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
         <button class="btn sub" id="btn-report-cancel">やめる</button>
       </div>
       <p class="note" style="margin-bottom:0">報告はこの端末の中にだけ記録されます。</p>
+    </div>
+  </section>
+
+  <!-- プリント作成 -->
+  <section class="view" id="view-print">
+    <div class="stepper"><span class="now">1. 対象と設定</span><span>2. プリント</span><span>3. 解き直し</span></div>
+    <h2>補強プリントを作る</h2>
+    <p class="note" style="margin-top:0">間違えた問題と同じ型の、新しい問題を作ります。元の問題そのものは載せません。問題はすべて自動で検算され、正しいものだけが出ます。</p>
+    <label class="f">対象</label>
+    <select id="print-source"></select>
+    <label class="f">問題数</label>
+    <div class="seg" id="print-count">
+      <button data-count="5">5問</button>
+      <button data-count="10" class="sel-maru">10問</button>
+      <button data-count="20">20問</button>
+    </div>
+    <label class="f">難易度</label>
+    <div class="seg" id="print-level">
+      <button data-level="basic">基礎のみ</button>
+      <button data-level="standard" class="sel-maru">標準まで</button>
+    </div>
+    <p class="note" id="print-target-note"></p>
+    <div class="btn-row">
+      <button class="btn" id="btn-make-sheet">プリントを作る</button>
+      <button class="btn sub" id="btn-print-back">戻る</button>
+    </div>
+  </section>
+
+  <!-- プリントのプレビュー -->
+  <section class="view" id="view-sheet">
+    <div class="stepper"><span>1. 対象と設定</span><span class="now">2. プリント</span><span>3. 解き直し</span></div>
+    <h2>プリント</h2>
+    <p class="note" style="margin-top:0">印刷すると、問題のページと、最後に解答のページが出ます。解き終わったら「解き直しを記録する」へ進んでください。</p>
+    <div id="sheet-preview"></div>
+    <div class="btn-row">
+      <button class="btn" id="btn-do-print">印刷する</button>
+      <button class="btn sub" id="btn-to-review">解き直しを記録する</button>
+      <button class="btn sub" id="btn-remake-sheet">作り直す</button>
+      <button class="btn sub" id="btn-sheet-back">設定に戻る</button>
+    </div>
+  </section>
+
+  <!-- 解き直しの記録 -->
+  <section class="view" id="view-review">
+    <div class="stepper"><span>1. 対象と設定</span><span>2. プリント</span><span class="now">3. 解き直し</span></div>
+    <h2>解き直しの記録</h2>
+    <p class="note" style="margin-top:0">解いたプリントの結果を、問題ごとに ○× で記録します。○になった問題は「克服」に近づきます。</p>
+    <div id="review-list"></div>
+    <div class="btn-row">
+      <button class="btn" id="btn-review-save">記録して終える</button>
+      <button class="btn sub" id="btn-review-back">プリントに戻る</button>
     </div>
   </section>
 
@@ -350,6 +436,7 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="print-area"></div>
 
 <script>
 "use strict";
@@ -895,6 +982,7 @@ async function renderDetail(){
       <div class="kv">
         ${unit ? `<span class="tag">${unit.grade} ${esc(unit.name)}</span>` : ""}
         ${(it.causes || []).map(c => `<span class="tag">${esc(c)}</span>`).join("")}
+        ${it.review ? `<span class="tag">${it.review.ok ? "解き直しで ○（克服）" : "解き直しでも ×"}</span>` : ""}
       </div>
       ${it.causeNote ? `<p class="note">根拠：${esc(it.causeNote)}${it.firstBadLine ? `（最初に間違えた行：${esc(it.firstBadLine)}行目）` : ""}</p>` : ""}
       ${it.teacherComment ? `<p class="note">先生のコメント：${esc(it.teacherComment)}</p>` : ""}
@@ -1380,6 +1468,750 @@ function wire2(){
 }
 wire2();
 window.__tf2 = { aggregate, buildExplanation, toSpeech, lostPoints, effectiveScore };
+</script>
+<script>
+"use strict";
+/* ================= フェーズ3：生成エンジン ================= */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function makeRng(seed){
+  const f = mulberry32(seed >>> 0);
+  return {
+    next: f,
+    int: (a, b) => a + Math.floor(f() * (b - a + 1)),
+    nz: (a, b) => { let v = 0; while (v === 0) v = a + Math.floor(f() * (b - a + 1)); return v; },
+    pick: arr => arr[Math.floor(f() * arr.length)],
+    chance: p => f() < p,
+  };
+}
+function gcd(a, b){ a = Math.abs(a); b = Math.abs(b); while (b){ [a, b] = [b, a % b]; } return a || 1; }
+function fracStr(n, d){ // n/d を約分して文字列に（d=1 なら整数）
+  if (d < 0){ n = -n; d = -d; }
+  const g = gcd(n, d);
+  n /= g; d /= g;
+  return d === 1 ? String(n) : `${n}/${d}`;
+}
+function fracHTML(n, d){
+  if (d < 0){ n = -n; d = -d; }
+  const g = gcd(n, d); n /= g; d /= g;
+  if (d === 1) return String(n);
+  const sign = n < 0 ? "−" : "";
+  return `${sign}<span class="mf"><span class="mn">${Math.abs(n)}</span><span class="md">${d}</span></span>`;
+}
+const V = s => `<span class="mi">${s}</span>`;
+const SUP = (b, e) => `${b}<sup>${e}</sup>`;
+const ROOT = inner => `<span class="rt"><span class="rs">√</span><span class="ri">${inner}</span></span>`;
+function num(n){ return n < 0 ? `(${n})` : String(n); } // 式の中で負数を括る
+function sgn(n){ return n < 0 ? ` − ${Math.abs(n)}` : ` + ${n}`; }
+
+/* 式の評価器（検算用：生成とは別の経路で計算する） */
+function evalExpr(src, vars = {}){
+  const toks = [];
+  let i = 0;
+  while (i < src.length){
+    const c = src[i];
+    if (c === " "){ i++; continue; }
+    if (/[0-9.]/.test(c)){ let j = i; while (j < src.length && /[0-9.]/.test(src[j])) j++; toks.push({ t: "n", v: parseFloat(src.slice(i, j)) }); i = j; continue; }
+    if (/[a-zA-Z]/.test(c)){ toks.push({ t: "v", v: c }); i++; continue; }
+    if ("+-*/^()".includes(c)){ toks.push({ t: c }); i++; continue; }
+    throw new Error("evalExpr: bad char " + c);
+  }
+  let pos = 0;
+  const peek = () => toks[pos], eat = t => { if (toks[pos] && toks[pos].t === t) pos++; else throw new Error("evalExpr: expected " + t); };
+  function parseE(){ let v = parseT(); while (peek() && (peek().t === "+" || peek().t === "-")){ const op = toks[pos++].t; const r = parseT(); v = op === "+" ? v + r : v - r; } return v; }
+  function parseT(){ let v = parseF(); while (peek() && (peek().t === "*" || peek().t === "/")){ const op = toks[pos++].t; const r = parseF(); v = op === "*" ? v * r : v / r; } return v; }
+  function parseF(){ let v = parseU(); while (peek() && peek().t === "^"){ pos++; const r = parseU(); v = Math.pow(v, r); } return v; }
+  function parseU(){
+    if (peek() && peek().t === "-"){ pos++; return -parseU(); }
+    if (peek() && peek().t === "("){ pos++; const v = parseE(); eat(")"); return v; }
+    const tk = toks[pos++];
+    if (!tk) throw new Error("evalExpr: eof");
+    if (tk.t === "n") return tk.v;
+    if (tk.t === "v"){ if (!(tk.v in vars)) throw new Error("evalExpr: no var " + tk.v); return vars[tk.v]; }
+    throw new Error("evalExpr: bad token");
+  }
+  const out = parseE();
+  if (pos !== toks.length) throw new Error("evalExpr: trailing");
+  return out;
+}
+const approx = (a, b) => Math.abs(a - b) < 1e-9;
+function polyStr(A, B, C){ // Ax^2+Bx+C の教科書表記（0の項は省く）
+  const terms = [];
+  if (A) terms.push({ neg: A < 0, s: `${Math.abs(A) === 1 ? "" : Math.abs(A)}${V("x")}<sup>2</sup>` });
+  if (B) terms.push({ neg: B < 0, s: `${Math.abs(B) === 1 ? "" : Math.abs(B)}${V("x")}` });
+  if (C) terms.push({ neg: C < 0, s: String(Math.abs(C)) });
+  if (!terms.length) return "0";
+  return terms.map((t, i) => (i === 0 ? (t.neg ? "−" : "") : t.neg ? " − " : " ＋ ") + t.s).join("");
+}
+
+/* ---- 型の定義（前半） ---- */
+const TYPES = [];
+function defType(t){ TYPES.push(t); }
+
+defType({
+  id: "seifu-mix", unit: "seifu", name: "正負の数の四則計算", level: 1,
+  gen(R){
+    const form = R.int(0, 2);
+    let a, b, c, expr, val;
+    if (form === 0){ a = R.nz(-9, 9); b = R.nz(-9, 9); c = R.nz(-9, 9); expr = `${a}+${b}*${c}`; val = a + b * c; }
+    else if (form === 1){ a = R.nz(-9, 9); b = R.nz(-9, 9); c = R.nz(-9, 9); expr = `(${a}+${b})*${c}`; val = (a + b) * c; }
+    else { a = R.nz(-12, 12); b = R.pick([2, 3, 4, 6, 8, 12]) * R.pick([1, -1]); c = R.nz(-9, 9); if (a % b !== 0) return null; expr = `${a}/${b}+${c}`; val = a / b + c; }
+    const disp = expr.replace(/\*/g, "×").replace(/\//g, "÷").replace(/-([0-9])/g, "(−$1)").replace(/\+−/g, "−");
+    return { expr, text: `計算しなさい。　<span class="math">${disp}</span>`, answer: String(val), steps: [`答えは ${val} です。かけ算・わり算を先に計算するのが決まりです。`], val };
+  },
+  verify(p){ return approx(evalExpr(p.expr), p.val); },
+});
+defType({
+  id: "seifu-pow", unit: "seifu", name: "累乗と絶対値", level: 1,
+  gen(R){
+    const form = R.int(0, 2);
+    if (form === 0){ const a = R.int(2, 9); const neg = R.chance(0.5); const expr = neg ? `(-${a})^2` : `${a}^2`; const val = a * a; return { expr, a, neg, text: `計算しなさい。　<span class="math">${neg ? num(-a) : a}<sup>2</sup></span>`, answer: String(val), steps: [`${a}×${a}＝${val} です。かっこがあるときは、かっこの中全体を2回かけます。`], val }; }
+    if (form === 1){ const a = R.int(2, 9); const expr = `-${a}^2`; const val = -(a * a); return { expr, a, text: `計算しなさい。　<span class="math">−${a}<sup>2</sup></span>`, answer: String(val), steps: [`累乗は ${a} だけにかかるので、−(${a}×${a})＝${val} です。`], val }; }
+    const a = R.nz(-12, 12); const b = R.nz(-9, 9); const val = Math.abs(a) + b;
+    return { expr: null, a, b, text: `計算しなさい。　<span class="math">|${a}| ${b < 0 ? "− " + Math.abs(b) : "＋ " + b}</span>`, answer: String(val), steps: [`|${a}| は ${Math.abs(a)} です（絶対値は0からの距離）。${Math.abs(a)} ${b < 0 ? "−" : "＋"} ${Math.abs(b)} ＝ ${val}。`], val };
+  },
+  verify(p){ if (p.expr) return approx(evalExpr(p.expr), p.val); return p.val === Math.abs(p.a) + p.b; },
+});
+defType({
+  id: "moji-value", unit: "moji", name: "式の値", level: 1,
+  gen(R, twist){
+    const a = R.nz(-9, 9), b = R.int(-9, 9);
+    let xv, xDisp, val;
+    if (twist){ const den = R.pick([2, 3]); if (a % den !== 0) return null; xv = 1 / den; xDisp = fracHTML(1, den); val = a / den + b; }
+    else { xv = R.nz(-6, 6); xDisp = String(xv); val = a * xv + b; }
+    return { a, b, xv, text: `${V("x")} ＝ ${xDisp} のとき、式 <span class="math">${a}${V("x")} ${sgn(b)}</span> の値を求めなさい。`, answer: String(val), steps: [`${V("x")} に ${xDisp} を代入します。${a}×${xDisp} ${sgn(b)} ＝ ${val}。`], val };
+  },
+  verify(p){ return approx(evalExpr(`${p.a}*x+${p.b}`, { x: p.xv }), p.val); },
+});
+defType({
+  id: "moji-add", unit: "moji", name: "一次式の加減", level: 1,
+  gen(R){
+    const a = R.nz(-9, 9), b = R.int(-9, 9), c = R.nz(-9, 9), d = R.int(-9, 9);
+    const minus = R.chance(0.5);
+    const A = minus ? a - c : a + c, B = minus ? b - d : b + d;
+    const ansExpr = `${A}*x+${B}`;
+    const left = `(${a}*x+${b})`, right = `(${c}*x+${d})`;
+    const expr = minus ? `${left}-(${c}*x+${d})` : `${left}+${right}`;
+    const fmt = (p, q) => `${p}${V("x")}${sgn(q)}`;
+    return { expr, ansExpr, A, B, text: `計算しなさい。　<span class="math">(${fmt(a, b)}) ${minus ? "−" : "＋"} (${fmt(c, d)})</span>`, answer: `${fmt(A, B)}`, steps: [`同じ文字の項どうし、数の項どうしをまとめます。${V("x")} の係数は ${a} ${minus ? "−" : "＋"} ${num(c)} ＝ ${A}、数の項は ${b} ${minus ? "−" : "＋"} ${num(d)} ＝ ${B}。`], val: null };
+  },
+  verify(p){ return [3, -2].every(x => approx(evalExpr(p.expr, { x }), evalExpr(p.ansExpr, { x }))); },
+});
+defType({
+  id: "ichiho-basic", unit: "ichiho", name: "一次方程式", level: 1,
+  gen(R){
+    const x0 = R.nz(-8, 8);
+    const a = R.nz(-6, 6); let c = R.nz(-6, 6); if (c === a) c = a + 1;
+    const b = R.int(-9, 9);
+    const d = a * x0 + b - c * x0;
+    return { a, b, c, d, x0, text: `方程式を解きなさい。　<span class="math">${a}${V("x")} ${sgn(b)} ＝ ${c}${V("x")} ${sgn(d)}</span>`, answer: `${V("x")} ＝ ${x0}`, steps: [`${V("x")} の項を左辺に、数の項を右辺に移項します。解は ${V("x")} ＝ ${x0} です。代入すると両辺とも ${a * x0 + b} になり、合っています。`] };
+  },
+  verify(p){ return p.a * p.x0 + p.b === p.c * p.x0 + p.d; },
+});
+defType({
+  id: "ichiho-frac", unit: "ichiho", name: "分数・小数の方程式", level: 2,
+  gen(R, twist){
+    if (twist){
+      const a = R.pick([2, 4, 5, 8, 10]); const x0 = R.nz(-8, 8); const b = R.int(-9, 9);
+      const c10 = a * x0 + b * 10;
+      if (c10 % 10 !== 0) return null;
+      const c = c10 / 10;
+      return { a, b, x0, c, form: "dec", text: `方程式を解きなさい。　<span class="math">0.${a}${V("x")} ${sgn(b)} ＝ ${c}</span>`, answer: `${V("x")} ＝ ${x0}`, steps: [`両辺を10倍すると ${a}${V("x")} ${sgn(b * 10)} ＝ ${c10} になり、解は ${V("x")} ＝ ${x0} です。`] };
+    }
+    const b = R.pick([2, 3, 4, 6]); const a = R.int(-9, 9); const c = R.nz(-6, 6);
+    const x0 = b * c - a;
+    return { a, b, c, x0, form: "frac", text: `方程式を解きなさい。　<span class="math"><span class="mf"><span class="mn">${V("x")} ${sgn(a)}</span><span class="md">${b}</span></span> ＝ ${c}</span>`, answer: `${V("x")} ＝ ${x0}`, steps: [`両辺に ${b} をかけると ${V("x")} ${sgn(a)} ＝ ${b * c}、よって ${V("x")} ＝ ${x0} です。`] };
+  },
+  verify(p){ if (p.form === "dec") return approx(p.a / 10 * p.x0 + p.b, p.c); return (p.x0 + p.a) === p.b * p.c; },
+});
+defType({
+  id: "ichiho-word", unit: "ichiho", name: "方程式の文章題（数とお金）", level: 2,
+  gen(R){
+    if (R.chance(0.5)){
+      const diff = R.int(3, 30); const small = R.int(5, 60);
+      const big = small + diff, total = big + small;
+      return { small, big, total, diff, form: "sum", text: `2つの整数があります。合計は ${total} で、大きい方は小さい方より ${diff} 大きいです。2つの整数を求めなさい。`, answer: `${small} と ${big}`, steps: [`小さい方を ${V("x")} とすると、大きい方は ${V("x")} ＋ ${diff}。合計の式 ${V("x")} ＋ (${V("x")} ＋ ${diff}) ＝ ${total} を解くと ${V("x")} ＝ ${small}。`] };
+    }
+    const price = R.pick([80, 120, 150, 200, 240, 300]); const n = R.int(2, 9);
+    const paid = R.pick([1000, 2000]); const change = paid - price * n;
+    if (change <= 0) return null;
+    return { price, n, paid, change, form: "buy", text: `1個 ${price} 円のりんごを何個か買って ${paid} 円を出すと、おつりは ${change} 円でした。りんごは何個買いましたか。`, answer: `${n} 個`, steps: [`買った個数を ${V("x")} とすると、${price}${V("x")} ＝ ${paid} − ${change} ＝ ${paid - change}。よって ${V("x")} ＝ ${n}。`] };
+  },
+  verify(p){ if (p.form === "sum") return p.small + p.big === p.total && p.big - p.small === p.diff; return p.price * p.n + p.change === p.paid; },
+});
+defType({
+  id: "shiki2-mono", unit: "shiki2", name: "単項式の乗除", level: 1,
+  gen(R){
+    const a = R.nz(-6, 6), b = R.nz(-6, 6);
+    const m = R.int(1, 3), n = R.int(0, 3), p = R.int(1, 3), q = R.int(0, 2);
+    const div = R.chance(0.4);
+    if (div && (b === 0 || a % b !== 0)) return null;
+    const coef = div ? a / b : a * b;
+    const ex = div ? m - p : m + p, ey = div ? n - q : n + q;
+    if (div && (ex < 0 || ey < 0)) return null;
+    const mono = (cf, ex2, ey2) => { const s = `${cf === 1 ? "" : cf === -1 ? "−" : cf}${ex2 ? SUP(V("x"), ex2).replace("<sup>1</sup>", "") : ""}${ey2 ? SUP(V("y"), ey2).replace("<sup>1</sup>", "") : ""}`; return s === "" ? "1" : s; };
+    const ansExpr = `${coef}*x^${ex}*y^${ey}`;
+    const leftExpr = `${a}*x^${m}*y^${n}`, rightExpr = `${b}*x^${p}*y^${q}`;
+    const expr = div ? `(${leftExpr})/(${rightExpr})` : `(${leftExpr})*(${rightExpr})`;
+    return { expr, ansExpr, coef, ex, ey, text: `計算しなさい。　<span class="math">(${mono(a, m, n)}) ${div ? "÷" : "×"} (${mono(b, p, q)})</span>`, answer: mono(coef, ex, ey), steps: [`係数どうし、同じ文字どうしを計算します。係数は ${coef}、${V("x")} の指数は ${ex}、${V("y")} の指数は ${ey} です。`] };
+  },
+  verify(p){ return [{ x: 2, y: 3 }, { x: -1, y: 2 }].every(v => approx(evalExpr(p.expr, v), evalExpr(p.ansExpr, v))); },
+});
+defType({
+  id: "renritsu-basic", unit: "renritsu", name: "連立方程式", level: 1,
+  gen(R){
+    const x0 = R.nz(-6, 6), y0 = R.nz(-6, 6);
+    const a = R.nz(-5, 5), b = R.nz(-5, 5), c = R.nz(-5, 5), d = R.nz(-5, 5);
+    if (a * d - b * c === 0) return null;
+    const e = a * x0 + b * y0, f = c * x0 + d * y0;
+    const eq = (p, q, r) => `${p}${V("x")} ${q < 0 ? "− " + Math.abs(q) : "＋ " + q}${V("y")} ＝ ${r}`;
+    return { a, b, c, d, e, f, x0, y0, text: `連立方程式を解きなさい。<br><span class="math">⎧ ${eq(a, b, e)}<br>⎩ ${eq(c, d, f)}</span>`, answer: `${V("x")} ＝ ${x0}、${V("y")} ＝ ${y0}`, steps: [`加減法か代入法で文字を1つ消します。解は ${V("x")} ＝ ${x0}、${V("y")} ＝ ${y0}。両方の式に代入して確かめられます。`] };
+  },
+  verify(p){ return p.a * p.x0 + p.b * p.y0 === p.e && p.c * p.x0 + p.d * p.y0 === p.f; },
+});
+defType({
+  id: "renritsu-word", unit: "renritsu", name: "連立方程式の文章題（食塩水）", level: 2,
+  gen(R){
+    const pa = R.pick([4, 5, 6, 8, 10]), pb = R.pick([12, 15, 16, 20]);
+    if (pb <= pa) return null;
+    const x0 = R.pick([100, 150, 200, 250]), y0 = R.pick([100, 150, 200]);
+    const total = x0 + y0;
+    const salt = pa * x0 / 100 + pb * y0 / 100;
+    const pc100 = salt * 100 * 100 / total;
+    if (!Number.isInteger(pc100)) return null;
+    const pc = pc100 / 100;
+    return { pa, pb, x0, y0, total, pc, salt, text: `${pa}% の食塩水と ${pb}% の食塩水を混ぜて、${pc}% の食塩水を ${total} g 作ります。それぞれ何 g ずつ混ぜればよいですか。`, answer: `${pa}% を ${x0} g、${pb}% を ${y0} g`, steps: [`${pa}% を ${V("x")} g、${pb}% を ${V("y")} g とすると、量の式 ${V("x")} ＋ ${V("y")} ＝ ${total}、塩の式 0.${String(pa).padStart(2, "0")}${V("x")} ＋ 0.${String(pb).padStart(2, "0")}${V("y")} ＝ ${salt}。解くと ${V("x")} ＝ ${x0}、${V("y")} ＝ ${y0}。`] };
+  },
+  verify(p){ return p.x0 + p.y0 === p.total && approx(p.pa * p.x0 / 100 + p.pb * p.y0 / 100, p.pc * p.total / 100); },
+});
+defType({
+  id: "takoshiki-expand", unit: "takoshiki", name: "式の展開", level: 1,
+  gen(R, twist){
+    let text, expr, ansExpr, steps;
+    if (twist){
+      const a = R.nz(-6, 6), b = R.int(-6, 6), c = R.nz(-4, 4), d = R.int(-6, 6);
+      expr = `(${a}*x+${b})*(${c}*x+${d})`;
+      const A = a * c, B = a * d + b * c, C = b * d;
+      ansExpr = `${A}*x^2+${B}*x+${C}`;
+      text = `展開しなさい。　<span class="math">(${a}${V("x")} ${sgn(b)})(${c}${V("x")} ${sgn(d)})</span>`;
+      steps = [`分配法則で1つずつかけます。${V("x")}² の係数は ${A}、${V("x")} の係数は ${B}、定数項は ${C}。`];
+      return { expr, ansExpr, text, answer: polyStr(A, B, C), steps };
+    }
+    const form = R.int(0, 2);
+    const a = R.nz(-9, 9), b = R.nz(-9, 9);
+    if (form === 0){ expr = `(x+${a})*(x+${b})`; ansExpr = `x^2+${a + b}*x+${a * b}`; text = `展開しなさい。　<span class="math">(${V("x")} ${sgn(a)})(${V("x")} ${sgn(b)})</span>`; steps = [`(${V("x")}＋a)(${V("x")}＋b) ＝ ${V("x")}² ＋ (a＋b)${V("x")} ＋ ab の形です。`]; return { expr, ansExpr, text, answer: polyStr(1, a + b, a * b), steps }; }
+    if (form === 1){ expr = `(x+${a})^2`; ansExpr = `x^2+${2 * a}*x+${a * a}`; text = `展開しなさい。　<span class="math">(${V("x")} ${sgn(a)})<sup>2</sup></span>`; steps = [`(${V("x")}＋a)² ＝ ${V("x")}² ＋ 2a${V("x")} ＋ a² の形です。`]; return { expr, ansExpr, text, answer: polyStr(1, 2 * a, a * a), steps }; }
+    expr = `(x+${a})*(x-${a})`; ansExpr = `x^2-${a * a}`; text = `展開しなさい。　<span class="math">(${V("x")} ${sgn(a)})(${V("x")} ${sgn(-a)})</span>`; steps = [`(${V("x")}＋a)(${V("x")}−a) ＝ ${V("x")}² − a² の形（和と差の積）です。`]; return { expr, ansExpr, text, answer: `${V("x")}<sup>2</sup> − ${a * a}`, steps };
+  },
+  verify(p){ return [2, -3, 5].every(x => approx(evalExpr(p.expr, { x }), evalExpr(p.ansExpr, { x }))); },
+});
+defType({
+  id: "takoshiki-factor", unit: "takoshiki", name: "因数分解", level: 2,
+  gen(R, twist){
+    if (twist){
+      const a = R.int(2, 9);
+      return { form: "diff", a, B: 0, C: -a * a, text: `因数分解しなさい。　<span class="math">${V("x")}<sup>2</sup> − ${a * a}</span>`, answer: `(${V("x")} ＋ ${a})(${V("x")} − ${a})`, steps: [`${V("x")}² − a² ＝ (${V("x")}＋a)(${V("x")}−a) の形です。`] };
+    }
+    const a = R.nz(-9, 9); let b = R.nz(-9, 9);
+    const B = a + b, C = a * b;
+    if (B === 0) return null;
+    return { form: "prod", a, b, B, C, text: `因数分解しなさい。　<span class="math">${polyStr(1, B, C)}</span>`, answer: `(${V("x")} ${sgn(a)})(${V("x")} ${sgn(b)})`, steps: [`かけて ${C}、たして ${B} になる2数は ${a} と ${b} です。`] };
+  },
+  verify(p){
+    // 生成とは別に、約数の探索で因数を探し直して照合する
+    if (p.form === "diff") return p.C === -p.a * p.a && p.B === 0;
+    for (let d1 = -20; d1 <= 20; d1++){
+      if (d1 === 0 || p.C % d1 !== 0) continue;
+      const d2 = p.C / d1;
+      if (d1 + d2 === p.B) return (d1 === p.a && d2 === p.b) || (d1 === p.b && d2 === p.a);
+    }
+    return false;
+  },
+});
+</script>
+<script>
+"use strict";
+/* ---- 型の定義（後半） ---- */
+function squareFree(m){ for (let k = 2; k * k <= m; k++) if (m % (k * k) === 0) return false; return m >= 1; }
+function simpRad(n){ // √n = k√m の形に
+  let k = 1, m = n;
+  for (let d = 2; d * d <= m; d++){ while (m % (d * d) === 0){ m /= d * d; k *= d; } }
+  return { k, m };
+}
+function radStr(k, m){ if (m === 1) return String(k); return `${k === 1 ? "" : k}${ROOT(m)}`; }
+
+defType({
+  id: "heihokon-calc", unit: "heihokon", name: "根号の計算", level: 1,
+  gen(R){
+    const form = R.int(0, 2);
+    if (form === 2){
+      const a = R.pick([2, 3, 5, 6, 7, 8, 10]); const b = R.pick([2, 3, 5, 7]);
+      const prod = a * b; const s = simpRad(prod);
+      return { form, a, b, k: s.k, m: s.m, text: `計算しなさい。　<span class="math">${ROOT(a)} × ${ROOT(b)}</span>`, answer: radStr(s.k, s.m), steps: [`${ROOT(a)}×${ROOT(b)} ＝ ${ROOT(prod)}。${prod} ＝ ${s.k}²×${s.m} と分けると ${radStr(s.k, s.m)} になります。`] };
+    }
+    const m = R.pick([2, 3, 5, 6, 7, 10]);
+    const k1 = R.int(1, 5), k2 = R.int(1, 4);
+    const a = k1 * k1 * m, b = k2 * k2 * m;
+    const minus = form === 1;
+    if (minus && k1 <= k2) return null;
+    const k = minus ? k1 - k2 : k1 + k2;
+    return { form, a, b, k, m, text: `計算しなさい。　<span class="math">${ROOT(a)} ${minus ? "−" : "＋"} ${ROOT(b)}</span>`, answer: radStr(k, m), steps: [`${ROOT(a)} ＝ ${radStr(k1, m)}、${ROOT(b)} ＝ ${radStr(k2, m)} と直してから、根号の外どうしを計算します。`] };
+  },
+  verify(p){
+    const lhs = p.form === 2 ? Math.sqrt(p.a) * Math.sqrt(p.b) : (p.form === 1 ? Math.sqrt(p.a) - Math.sqrt(p.b) : Math.sqrt(p.a) + Math.sqrt(p.b));
+    return approx(lhs, p.k * Math.sqrt(p.m)) && squareFree(p.m);
+  },
+});
+defType({
+  id: "heihokon-rationalize", unit: "heihokon", name: "分母の有理化", level: 2,
+  gen(R){
+    const b = R.pick([2, 3, 5, 6, 7, 10, 11, 13]);
+    const a = R.int(1, 9);
+    const g = gcd(a, b);
+    const ap = a / g, bp = b / g;
+    return { a, b, ap, bp, text: `分母を有理化しなさい。　<span class="math"><span class="mf"><span class="mn">${a}</span><span class="md">${ROOT(b)}</span></span></span>`, answer: bp === 1 ? radStr(ap, b) : `<span class="mf"><span class="mn">${ap === 1 ? ROOT(b) : ap + ROOT(b)}</span><span class="md">${bp}</span></span>`, steps: [`分母と分子に ${ROOT(b)} をかけると分母は ${b} になります。${a} と ${b} を ${g > 1 ? `${g} で約分して` : "そのまま"}答えにします。`] };
+  },
+  verify(p){ return approx(p.a / Math.sqrt(p.b), p.ap * Math.sqrt(p.b) / p.bp) && gcd(p.ap, p.bp) === 1; },
+});
+defType({
+  id: "nijiho-factor", unit: "nijiho", name: "因数分解で解く二次方程式", level: 1,
+  gen(R){
+    const p = R.nz(-8, 8); let q = R.nz(-8, 8);
+    if (p === q) q = q + 1;
+    const B = -(p + q), C = p * q;
+    return { p, q, B, C, text: `方程式を解きなさい。　<span class="math">${polyStr(1, B, C)} ＝ 0</span>`, answer: `${V("x")} ＝ ${Math.min(p, q)}、${Math.max(p, q)}`, steps: [`左辺を因数分解すると (${V("x")} ${sgn(-p)})(${V("x")} ${sgn(-q)}) ＝ 0。よって解は2つあります。`] };
+  },
+  verify(p){
+    const found = [];
+    for (let x = -30; x <= 30; x++) if (x * x + p.B * x + p.C === 0) found.push(x);
+    return found.length === 2 && found.includes(p.p) && found.includes(p.q);
+  },
+});
+defType({
+  id: "nijiho-formula", unit: "nijiho", name: "解の公式", level: 2,
+  gen(R){
+    if (R.chance(0.5)){
+      // 根号の解：判別式が k²m 型
+      const b = R.nz(-7, 7); const k = R.pick([1, 2, 3]); const m = R.pick([2, 3, 5, 6, 7]);
+      const D = k * k * m;
+      const num = b * b - D;
+      if (num % 4 !== 0) return null;
+      const c = num / 4;
+      if (c === 0) return null;
+      const g = gcd(gcd(Math.abs(b), k), 2);
+      const pb = -b / g, kk = k / g, qq = 2 / g;
+      return { form: "rad", b, c, pb, kk, m, qq, D, text: `解の公式を使って方程式を解きなさい。　<span class="math">${polyStr(1, b, c)} ＝ 0</span>`, answer: `${V("x")} ＝ <span class="mf"><span class="mn">${pb} ± ${kk === 1 ? ROOT(m) : kk + ROOT(m)}</span><span class="md">${qq}</span></span>`, steps: [`判別式は ${b}² − 4×${num(c)} ＝ ${D} ＝ ${k}²×${m}。解の公式に入れて約分します。`] };
+    }
+    const p = R.nz(-8, 8); let q = R.nz(-8, 8);
+    if (p === q) q += 1;
+    const B = -(p + q), C = p * q;
+    return { form: "int", b: B, c: C, p, q, text: `解の公式を使って方程式を解きなさい。　<span class="math">${polyStr(1, B, C)} ＝ 0</span>`, answer: `${V("x")} ＝ ${Math.min(p, q)}、${Math.max(p, q)}`, steps: [`判別式は ${B * B - 4 * C} で、平方数になります。解の公式に入れると2つの解が出ます。`] };
+  },
+  verify(p){
+    if (p.form === "int") return p.p + p.q === -p.b && p.p * p.q === p.c;
+    // 根号の解は和と積（解と係数の関係）で照合する
+    const sum = 2 * p.pb / p.qq;
+    const prod = (p.pb * p.pb - p.kk * p.kk * p.m) / (p.qq * p.qq);
+    return approx(sum, -p.b) && approx(prod, p.c);
+  },
+});
+defType({
+  id: "hirei", unit: "hirei", name: "比例・反比例の式", level: 1,
+  gen(R, twist){
+    if (twist){
+      const a = R.pick([6, 8, 10, 12, 18, 20, 24, 30, 36]);
+      const x0 = R.pick([2, 3, 4, 5, 6]); if (a % x0 !== 0) return null;
+      const y0 = a / x0;
+      return { form: "inv", a, x0, y0, text: `${V("y")} は ${V("x")} に反比例し、${V("x")} ＝ ${x0} のとき ${V("y")} ＝ ${y0} です。${V("y")} を ${V("x")} の式で表しなさい。`, answer: `${V("y")} ＝ ${fracHTML(a, 1) === String(a) ? `<span class="mf"><span class="mn">${a}</span><span class="md">${V("x")}</span></span>` : ""}`, steps: [`反比例は ${V("x")}${V("y")} ＝ a（一定）。a ＝ ${x0}×${y0} ＝ ${a}。`] };
+    }
+    const den = R.pick([1, 1, 2, 3, 4]);
+    const aNum = R.nz(-9, 9);
+    const a = aNum / den;
+    const x0 = den * R.pick([1, 2, 3]) * R.pick([1, -1]); const y0 = a * x0;
+    if (!Number.isInteger(y0)) return null;
+    return { form: "prop", a, aNum, den, x0, y0, text: `${V("y")} は ${V("x")} に比例し、${V("x")} ＝ ${x0} のとき ${V("y")} ＝ ${y0} です。${V("y")} を ${V("x")} の式で表しなさい。`, answer: `${V("y")} ＝ ${den === 1 ? (a === 1 ? "" : a === -1 ? "−" : a) : fracHTML(aNum, den)}${V("x")}`, steps: [`比例は ${V("y")} ＝ a${V("x")}。a ＝ ${y0} ÷ ${x0} ＝ ${fracStr(aNum, den)}。`] };
+  },
+  verify(p){ if (p.form === "inv") return p.x0 * p.y0 === p.a; return approx(p.a * p.x0, p.y0); },
+});
+defType({
+  id: "ichiji-points", unit: "ichiji", name: "2点を通る直線の式", level: 2,
+  gen(R){
+    const x1 = R.int(-4, 3); const dx = R.pick([1, 2, 3, 4]);
+    const x2 = x1 + dx;
+    const aNum = R.nz(-6, 6);
+    if (aNum % dx !== 0 && !R.chance(0.5)) return null;
+    const b = R.int(-5, 5);
+    const y1n = aNum * x1 + b * dx, y2n = aNum * x2 + b * dx;
+    const y1 = y1n / dx, y2 = y2n / dx;
+    if (!Number.isInteger(y1) || !Number.isInteger(y2)) return null;
+    const a = aNum / dx;
+    return { a, aNum, dx, b, x1, y1, x2, y2, text: `2点 (${x1}, ${y1})、(${x2}, ${y2}) を通る直線の式を求めなさい。`, answer: `${V("y")} ＝ ${fracHTML(aNum, dx) === "1" ? "" : fracHTML(aNum, dx) === "-1" ? "−" : fracHTML(aNum, dx)}${V("x")} ${sgn(b)}`, steps: [`傾きは (${y2} − ${y1}) ÷ (${x2} − ${x1}) ＝ ${fracStr(aNum, dx)}。点 (${x1}, ${y1}) を通ることから切片は ${b}。`] };
+  },
+  verify(p){ return approx(p.a * p.x1 + p.b, p.y1) && approx(p.a * p.x2 + p.b, p.y2); },
+});
+defType({
+  id: "ichiji-graph", unit: "ichiji", name: "グラフから式を読む", level: 2,
+  gen(R){
+    const a = R.nz(-3, 3); const b = R.int(-4, 4);
+    const x1 = -3, x2 = 3;
+    const y1 = a * x1 + b, y2 = a * x2 + b;
+    if (Math.abs(y1) > 6 || Math.abs(y2) > 6) return null;
+    const X = v => 30 + (v + 6) * 20, Y = v => 150 - (v + 6) * 20;
+    let grid = "";
+    for (let g = -6; g <= 6; g++){ grid += `<line x1="${X(g)}" y1="10" x2="${X(g)}" y2="290" stroke="#e3e0d5" stroke-width="1"/><line x1="10" y1="${Y(g)}" x2="290" y2="${Y(g)}" stroke="#e3e0d5" stroke-width="1"/>`; }
+    const svg = `<svg viewBox="0 0 300 300" width="280" height="280" role="img" aria-label="直線のグラフ" data-x1="${x1}" data-y1="${y1}" data-x2="${x2}" data-y2="${y2}">${grid}<line x1="10" y1="${Y(0)}" x2="290" y2="${Y(0)}" stroke="#666"/><line x1="${X(0)}" y1="10" x2="${X(0)}" y2="290" stroke="#666"/><line x1="${X(x1)}" y1="${Y(y1)}" x2="${X(x2)}" y2="${Y(y2)}" stroke="#0f766e" stroke-width="2.5"/><circle cx="${X(x1)}" cy="${Y(y1)}" r="4" fill="#b3261e"/><circle cx="${X(x2)}" cy="${Y(y2)}" r="4" fill="#b3261e"/></svg>`;
+    return { a, b, x1, y1, x2, y2, svg, text: `グラフの直線の式を求めなさい。`, answer: `${V("y")} ＝ ${a === 1 ? "" : a === -1 ? "−" : a}${V("x")} ${sgn(b)}`, steps: [`赤い2点は (${x1}, ${y1}) と (${x2}, ${y2})。傾きは ${a}、切片は ${b} です。`] };
+  },
+  verify(p){ return p.a * p.x1 + p.b === p.y1 && p.a * p.x2 + p.b === p.y2; },
+});
+defType({
+  id: "nijikan", unit: "nijikan", name: "二次関数の値", level: 1,
+  gen(R, twist){
+    const a = R.pick([1, 2, 3, -1, -2]);
+    if (twist){
+      const p = R.pick([-3, -2]); const q = R.pick([2, 3]);
+      const vals = [a * p * p, 0, a * q * q];
+      const max = Math.max(...vals), min = Math.min(...vals);
+      return { form: "range", a, p, q, max, min, text: `${V("y")} ＝ ${a === 1 ? "" : a === -1 ? "−" : a}${V("x")}<sup>2</sup> について、${V("x")} の変域が ${p} ≦ ${V("x")} ≦ ${q} のとき、${V("y")} の変域（最大値と最小値）を求めなさい。`, answer: `最小値 ${min}、最大値 ${max}`, steps: [`頂点 (${V("x")} ＝ 0) が変域の中にあるので、${V("y")} ＝ 0 が候補に入ります。両端の値 ${a * p * p}、${a * q * q} と比べて決めます。`] };
+    }
+    const x0 = R.nz(-5, 5); const y0 = a * x0 * x0;
+    return { form: "val", a, x0, y0, text: `${V("y")} ＝ ${a === 1 ? "" : a === -1 ? "−" : a}${V("x")}<sup>2</sup> について、${V("x")} ＝ ${x0} のときの ${V("y")} の値を求めなさい。`, answer: String(y0), steps: [`${V("x")} に ${x0} を代入します。${a}×(${x0})² ＝ ${y0}。`] };
+  },
+  verify(p){
+    if (p.form === "val") return p.a * p.x0 * p.x0 === p.y0;
+    let max = -Infinity, min = Infinity;
+    for (let x = p.p; x <= p.q; x++){ const y = p.a * x * x; if (y > max) max = y; if (y < min) min = y; }
+    return max === p.max && min === p.min;
+  },
+});
+defType({
+  id: "kakuritsu-dice", unit: "kakuritsu2", name: "サイコロの確率", level: 1,
+  gen(R, twist){
+    if (twist){
+      let cnt = 0;
+      for (let i = 1; i <= 6; i++) for (let j = 1; j <= 6; j++) if (i === 6 || j === 6) cnt++;
+      const g = gcd(cnt, 36);
+      return { form: "six", cnt, text: `大小2つのサイコロを同時に投げます。少なくとも1つは6の目が出る確率を求めなさい。`, answer: fracStr(cnt, 36), steps: [`全部で36通り。数えると ${cnt} 通りです。`] };
+    }
+    const s = R.int(4, 10);
+    let cnt = 0;
+    for (let i = 1; i <= 6; i++) for (let j = 1; j <= 6; j++) if (i + j === s) cnt++;
+    return { form: "sum", s, cnt, text: `大小2つのサイコロを同時に投げます。出た目の和が ${s} になる確率を求めなさい。`, answer: fracStr(cnt, 36), steps: [`全部で36通り。和が ${s} になるのは ${cnt} 通りです。表を書いて数えると確実です。`] };
+  },
+  verify(p){
+    let cnt = 0;
+    for (let i = 1; i <= 6; i++) for (let j = 1; j <= 6; j++){ if (p.form === "six" ? (i === 6 || j === 6) : (i + j === p.s)) cnt++; }
+    return cnt === p.cnt && fracStr(cnt, 36) === p.answer;
+  },
+});
+defType({
+  id: "kakuritsu-cases", unit: "kakuritsu2", name: "場合の数", level: 1,
+  gen(R, twist){
+    const n = R.int(4, 8); const r = R.pick([2, 3]);
+    if (twist){
+      let cnt = 1; for (let k = 0; k < r; k++) cnt *= (n - k);
+      return { form: "P", n, r, cnt, text: `${n} 人の中から ${r} 人を選んで、委員長・副委員長・書記の役を決める方法は何通りありますか。`, answer: `${cnt} 通り`, steps: [`順番が関係するので、順列で数えます。${n}×${n - 1}${r === 3 ? "×" + (n - 2) : ""} ＝ ${cnt}。`] };
+    }
+    let cnt = 1; for (let k = 0; k < r; k++) cnt = cnt * (n - k) / (k + 1);
+    return { form: "C", n, r, cnt, text: `${n} 人の中から ${r} 人の代表を選ぶ方法は何通りありますか。`, answer: `${cnt} 通り`, steps: [`順番は関係ないので、組合せで数えます。答えは ${cnt} 通り。`] };
+  },
+  verify(p){
+    // 列挙で数え直す（公式とは別の経路）
+    let cnt = 0;
+    if (p.form === "C"){
+      const rec = (start, depth) => { if (depth === p.r){ cnt++; return; } for (let i = start; i < p.n; i++) rec(i + 1, depth + 1); };
+      rec(0, 0);
+    } else {
+      const used = new Array(p.n).fill(false);
+      const rec = (depth) => { if (depth === p.r){ cnt++; return; } for (let i = 0; i < p.n; i++){ if (used[i]) continue; used[i] = true; rec(depth + 1); used[i] = false; } };
+      rec(0);
+    }
+    return cnt === p.cnt;
+  },
+});
+defType({
+  id: "zukei-angle", unit: "heimen", name: "角度の計算", level: 1,
+  gen(R, twist){
+    if (twist){
+      const a = R.int(25, 75), b = R.int(25, 75);
+      const c = 180 - a - b;
+      if (c <= 10) return null;
+      const svg = `<svg viewBox="0 0 300 200" width="280" height="187" role="img" aria-label="三角形"><polygon points="60,160 240,160 120,50" fill="none" stroke="#0f766e" stroke-width="2.5"/><text x="78" y="150" font-size="16">${a}°</text><text x="205" y="150" font-size="16">${b}°</text><text x="122" y="80" font-size="16">?</text></svg>`;
+      return { form: "tri", a, b, c, svg, text: `図の三角形で、? の角度を求めなさい。`, answer: `${c}°`, steps: [`三角形の内角の和は180°。180 − ${a} − ${b} ＝ ${c}°。`] };
+    }
+    const th = R.int(35, 145);
+    const ask = R.pick(["alt", "supp"]);
+    const ans = ask === "alt" ? th : 180 - th;
+    const svg = `<svg viewBox="0 0 300 200" width="280" height="187" role="img" aria-label="平行線と transversal"><line x1="30" y1="60" x2="270" y2="60" stroke="#0f766e" stroke-width="2.5"/><line x1="30" y1="140" x2="270" y2="140" stroke="#0f766e" stroke-width="2.5"/><line x1="110" y1="20" x2="190" y2="180" stroke="#666" stroke-width="2"/><text x="128" y="52" font-size="16">${th}°</text><text x="150" y="168" font-size="16">?</text></svg>`;
+    return { form: "par", th, ask, ans, svg, text: `図の2直線は平行です。? の角度を求めなさい。`, answer: `${ans}°`, steps: [ask === "alt" ? `平行線の錯角は等しいので、? ＝ ${th}°。` : `平行線の同側内角の和は180°。? ＝ 180 − ${th} ＝ ${ans}°。`] };
+  },
+  verify(p){ if (p.form === "tri") return p.a + p.b + p.c === 180; return p.ask === "alt" ? p.ans === p.th : p.ans === 180 - p.th; },
+});
+defType({
+  id: "sanpei", unit: "sanpei", name: "三平方の定理", level: 2,
+  gen(R, twist){
+    const triples = [[3, 4, 5], [6, 8, 10], [5, 12, 13], [9, 12, 15], [8, 15, 17], [7, 24, 25], [20, 21, 29]];
+    const [a, b, c] = R.pick(triples);
+    const svgFor = (la, lb, lc) => `<svg viewBox="0 0 300 220" width="280" height="205" role="img" aria-label="直角三角形"><polygon points="60,180 240,180 60,60" fill="none" stroke="#0f766e" stroke-width="2.5"/><path d="M60 162 L78 162 L78 180" fill="none" stroke="#666" stroke-width="1.5"/><text x="140" y="200" font-size="16">${la}</text><text x="30" y="125" font-size="16">${lb}</text><text x="160" y="105" font-size="16">${lc}</text></svg>`;
+    if (twist){
+      return { form: "leg", a, b, c, svg: svgFor(a, "?", c), text: `直角三角形で、斜辺が ${c}、1辺が ${a} です。もう1辺の長さを求めなさい。`, answer: String(b), steps: [`三平方の定理より、もう1辺は √(${c}² − ${a}²) ＝ √${c * c - a * a} ＝ ${b}。`] };
+    }
+    return { form: "hyp", a, b, c, svg: svgFor(a, b, "?"), text: `直角をはさむ2辺が ${a} と ${b} の直角三角形で、斜辺の長さを求めなさい。`, answer: String(c), steps: [`三平方の定理より、斜辺は √(${a}² ＋ ${b}²) ＝ √${a * a + b * b} ＝ ${c}。`] };
+  },
+  verify(p){ return p.a * p.a + p.b * p.b === p.c * p.c; },
+});
+
+/* ---- 生成（検算を通ったものだけ採用） ---- */
+function generateProblem(type, R, twist){
+  for (let t = 0; t < 80; t++){
+    let p = null;
+    try { p = type.gen(R, twist); } catch (e) { p = null; }
+    if (!p) continue;
+    let ok = false;
+    try { ok = type.verify(p); } catch (e) { ok = false; }
+    if (ok){
+      return { typeId: type.id, unitId: type.unit, typeName: type.name, text: p.text, answer: p.answer, steps: p.steps, svg: p.svg || null, twist: !!twist, params: p };
+    }
+  }
+  return null;
+}
+function typesForUnit(unitId, level){
+  return TYPES.filter(t => t.unit === unitId && (level === "standard" || t.level === 1));
+}
+function buildProblems(targetTypes, count, seed){
+  const R = makeRng(seed);
+  const problems = [];
+  let ti = 0, guard = 0;
+  while (problems.length < count && guard++ < 40){
+    const type = targetTypes[ti % targetTypes.length];
+    const triplet = [false, true, false]; // 類題 → ひねり → 再挑戦
+    for (const tw of triplet){
+      if (problems.length >= count) break;
+      const p = generateProblem(type, R, tw);
+      if (p) problems.push(p);
+    }
+    ti++;
+  }
+  return problems;
+}
+window.__tf3 = { TYPES, generateProblem, typesForUnit, buildProblems, makeRng, evalExpr };
+</script>
+
+
+<script>
+"use strict";
+/* ================= フェーズ3：プリントと解き直しの画面 ================= */
+let currentWorksheetId = null;
+let printBackTo = "home";
+const printCfg = { count: 10, level: "standard" };
+
+function segWire(id, key){
+  const seg = document.getElementById(id);
+  seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    seg.querySelectorAll("button").forEach(x => x.classList.remove("sel-maru"));
+    b.classList.add("sel-maru");
+    printCfg[key] = key === "count" ? Number(b.dataset.count) : b.dataset.level;
+    updatePrintNote();
+  }));
+}
+function unitHasTypes(unitId){ return TYPES.some(t => t.unit === unitId); }
+function openPrint(examId){
+  printBackTo = examId ? "detail" : "home";
+  const sel = document.getElementById("print-source");
+  sel.innerHTML = "";
+  for (const ex of state.exams){
+    const missed = ex.items.filter(it => it.mark === "batsu" || it.mark === "sankaku");
+    if (missed.length) sel.innerHTML += `<option value="exam:${ex.id}">答案「${esc(ex.title)}」のミスから</option>`;
+  }
+  for (const u of UNITS){
+    if (unitHasTypes(u.id)) sel.innerHTML += `<option value="unit:${u.id}">単元：${u.grade} ${esc(u.name)} から</option>`;
+  }
+  if (examId) sel.value = `exam:${examId}`;
+  updatePrintNote();
+  showView("print");
+}
+function printTargets(){
+  const v = document.getElementById("print-source").value || "";
+  const [kind, id] = v.split(":");
+  if (kind === "exam"){
+    const ex = state.exams.find(e => e.id === id);
+    if (!ex) return { types: [], origins: {} };
+    const origins = {};
+    const unitSet = [];
+    for (const it of ex.items){
+      if (it.mark !== "batsu" && it.mark !== "sankaku") continue;
+      if (!origins[it.unitId]) origins[it.unitId] = it.id;
+      if (!unitSet.includes(it.unitId)) unitSet.push(it.unitId);
+    }
+    const types = [];
+    for (const u of unitSet) types.push(...typesForUnit(u, printCfg.level));
+    return { types, origins, label: `答案「${ex.title}」のミス`, examId: ex.id };
+  }
+  const u = UNITS.find(x => x.id === id);
+  return { types: typesForUnit(id, printCfg.level), origins: {}, label: u ? `${u.grade} ${u.name}` : "" };
+}
+function updatePrintNote(){
+  const el = document.getElementById("print-target-note");
+  if (!el || !document.getElementById("print-source").value) return;
+  const { types } = printTargets();
+  el.textContent = types.length
+    ? `対象の型：${types.map(t => t.name).join("、")}（類題→ひねった問題→再挑戦の順に ${printCfg.count} 問）`
+    : "この対象では、選んだ難易度で作れる問題がありません。難易度を「標準まで」にしてみてください。";
+}
+function sheetHTML(ws){
+  const date = new Date(ws.createdAt);
+  const head = `<div class="p-head"><span>名前：＿＿＿＿＿＿＿＿</span><span>${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日</span><span>目安 ${ws.problems.length * 2} 分</span><span>${esc(ws.label)}</span></div>`;
+  const probs = ws.problems.map((p, i) => `
+    <div class="prob">
+      <div><span class="p-no">(${i + 1})</span><span class="p-type">${esc(p.typeName)}${p.twist ? "・ひねり" : ""}</span></div>
+      <div>${p.text}</div>
+      ${p.svg ? `<figure>${p.svg}</figure>` : ""}
+      <div class="work"></div><div class="work"></div><div class="work"></div>
+    </div>`).join("");
+  const answers = ws.problems.map((p, i) => `
+    <div class="prob">
+      <div><span class="p-no">(${i + 1})</span> <b>${p.answer}</b></div>
+      <p class="ans-steps">${(p.steps || []).join("<br>")}</p>
+    </div>`).join("");
+  return `<div class="paper sheet-problems"><h3>TripFix 補強プリント</h3>${head}${probs}</div>
+  <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}</div>`;
+}
+function currentWorksheet(){ return state.worksheets.find(w => w.id === currentWorksheetId) || null; }
+function makeSheet(){
+  const { types, origins, label } = printTargets();
+  if (!types.length){ toast("対象の問題がありません。対象か難易度を変えてください"); return; }
+  const problems = buildProblems(types, printCfg.count, (Date.now() % 2147483647) >>> 0);
+  if (!problems.length){ toast("問題を作れませんでした。もう一度お試しください"); return; }
+  for (const p of problems){ if (origins[p.unitId]) p.originItemId = origins[p.unitId]; p.params = undefined; }
+  const ws = { id: uid(), createdAt: Date.now(), label, problems, results: null };
+  state.worksheets.unshift(ws);
+  currentWorksheetId = ws.id;
+  saveState();
+  renderSheetPreview();
+  showView("sheet");
+  if (problems.length < printCfg.count) toast(`${problems.length} 問を作りました`);
+}
+function renderSheetPreview(){
+  const ws = currentWorksheet();
+  if (!ws) return;
+  document.getElementById("sheet-preview").innerHTML = sheetHTML(ws);
+}
+function printHTML(html){
+  const area = document.getElementById("print-area");
+  area.innerHTML = html;
+  window.print();
+}
+function renderReview(){
+  const ws = currentWorksheet();
+  if (!ws) return;
+  const box = document.getElementById("review-list");
+  box.innerHTML = ws.problems.map((p, i) => `
+    <div class="item-card">
+      <div class="item-top"><span class="no">(${i + 1}) ${esc(p.typeName)}</span></div>
+      <div style="margin:6px 0">${p.text}</div>
+      <div class="note">答え：${p.answer}</div>
+      <div class="seg review-seg" data-idx="${i}">
+        <button data-mark="maru">○ できた</button>
+        <button data-mark="batsu">× まだ</button>
+      </div>
+    </div>`).join("");
+  box.querySelectorAll(".review-seg").forEach(seg => {
+    const idx = Number(seg.dataset.idx);
+    const cur = ws.results && ws.results[idx];
+    seg.querySelectorAll("button").forEach(b => {
+      if (cur === b.dataset.mark) b.classList.add(b.dataset.mark === "maru" ? "sel-maru" : "sel-batsu");
+      b.addEventListener("click", () => {
+        seg.querySelectorAll("button").forEach(x => x.classList.remove("sel-maru", "sel-batsu"));
+        b.classList.add(b.dataset.mark === "maru" ? "sel-maru" : "sel-batsu");
+      });
+    });
+  });
+}
+function saveReview(){
+  const ws = currentWorksheet();
+  if (!ws) return;
+  const results = {};
+  document.querySelectorAll("#review-list .review-seg").forEach(seg => {
+    const sel = seg.querySelector(".sel-maru, .sel-batsu");
+    if (sel) results[Number(seg.dataset.idx)] = sel.dataset.mark;
+  });
+  if (!Object.keys(results).length){ toast("少なくとも1問に ○× を付けてください"); return; }
+  ws.results = results;
+  for (const [idx, mark] of Object.entries(results)){
+    const p = ws.problems[Number(idx)];
+    if (!p || !p.originItemId) continue;
+    for (const ex of state.exams){
+      const it = ex.items.find(x => x.id === p.originItemId);
+      if (it) it.review = { ok: mark === "maru", at: Date.now(), worksheetId: ws.id };
+    }
+  }
+  saveState();
+  const okCount = Object.values(results).filter(m => m === "maru").length;
+  toast(`記録しました（○ ${okCount} / ${Object.keys(results).length} 問）`);
+  showView("home");
+}
+function renderReviewNote(){
+  const box = document.getElementById("home-review-note");
+  if (!box) return;
+  const pending = state.worksheets.filter(w => !w.results);
+  if (!pending.length){ box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="card"><b>解き直しがまだのプリントが ${pending.length} 枚あります</b><p class="note">解いた結果を記録すると、元の問題に「克服」の印が付きます。</p><div class="btn-row"><button class="btn sub" id="btn-open-pending-sheet">プリントを開く</button></div></div>`;
+  document.getElementById("btn-open-pending-sheet").addEventListener("click", () => {
+    currentWorksheetId = pending[0].id;
+    renderSheetPreview();
+    showView("sheet");
+  });
+}
+const _renderHomeP3 = renderHome;
+renderHome = async function(){ await _renderHomeP3(); renderReviewNote(); };
+
+function wire3(){
+  segWire("print-count", "count");
+  segWire("print-level", "level");
+  document.getElementById("print-source").addEventListener("change", updatePrintNote);
+  document.getElementById("btn-make-sheet").addEventListener("click", makeSheet);
+  document.getElementById("btn-print-back").addEventListener("click", () => showView(printBackTo));
+  document.getElementById("btn-exam-print").addEventListener("click", () => openPrint(currentExamId));
+  document.getElementById("btn-home-print").addEventListener("click", () => openPrint(null));
+  document.getElementById("btn-do-print").addEventListener("click", () => {
+    const ws = currentWorksheet(); if (ws) printHTML(sheetHTML(ws));
+  });
+  document.getElementById("btn-remake-sheet").addEventListener("click", () => {
+    const ws = currentWorksheet();
+    if (!ws) return;
+    if (ws.results){ toast("記録済みのプリントは作り直せません"); return; }
+    const types = [];
+    for (const tid of [...new Set(ws.problems.map(p => p.typeId))]){
+      const t = TYPES.find(x => x.id === tid); if (t) types.push(t);
+    }
+    const problems = buildProblems(types, ws.problems.length, (Date.now() % 2147483647) >>> 0);
+    const origins = {};
+    for (const p of ws.problems) if (p.originItemId) origins[p.unitId] = p.originItemId;
+    for (const p of problems){ if (origins[p.unitId]) p.originItemId = origins[p.unitId]; p.params = undefined; }
+    ws.problems = problems;
+    saveState();
+    renderSheetPreview();
+    toast("新しい問題に作り直しました");
+  });
+  document.getElementById("btn-to-review").addEventListener("click", () => { renderReview(); showView("review"); });
+  document.getElementById("btn-sheet-back").addEventListener("click", () => showView("print"));
+  document.getElementById("btn-review-save").addEventListener("click", saveReview);
+  document.getElementById("btn-review-back").addEventListener("click", () => showView("sheet"));
+  document.getElementById("btn-analysis-print").addEventListener("click", () => {
+    const title = document.getElementById("analysis-title").textContent;
+    const meta = document.getElementById("analysis-meta").textContent;
+    const body = document.getElementById("analysis-body").innerHTML;
+    printHTML(`<div class="paper"><h3>${esc(title)}</h3><p>${esc(meta)}</p>${body}</div>`);
+  });
+}
+wire3();
+window.__tf3ui = { openPrint, makeSheet, currentWorksheet, renderReview, saveReview, printTargets };
 </script>
 </body>
 </html>
