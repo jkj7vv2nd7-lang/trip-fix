@@ -161,6 +161,9 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
 .map-chip[data-status="none"]{opacity:.75}
 html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
 .rep-evidence{background:var(--chip);border-radius:8px;padding:8px 10px;font-size:.9rem;margin-top:8px}
+/* 用紙プレビュー（画面）：固定ページを画面幅に合わせて縮小表示する */
+.pv-wrap{position:relative;overflow:hidden;margin:0 0 14px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.pv-page{position:absolute;left:0;top:0;width:186mm;height:240mm;transform-origin:top left;background:#fff;color:#222;padding:4mm;margin:0;border:none;box-shadow:none;border-radius:0}
 #print-area{display:none}
 @media print{
   @page{size:A4;margin:12mm}
@@ -168,8 +171,8 @@ html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
   body>#print-area{display:block !important}
   #print-area .paper{border:none;box-shadow:none;border-radius:0;padding:0;margin:0}
   #print-area .sheet-answers{page-break-before:always}
-  /* 固定ページ（印刷レイアウトv2）：1ページの高さを固定し、改ページを明示する */
-  #print-area .ppage{height:264mm;page-break-after:always;position:relative}
+  /* 固定ページ（印刷レイアウトv3）：1ページの高さを固定し、改ページを明示する */
+  #print-area .ppage{height:240mm;page-break-after:always;position:relative}
   #print-area .ppage:last-child{page-break-after:auto}
   #print-area .ppage .p-foot{position:absolute;bottom:2mm;right:0;margin:0}
 }
@@ -2212,8 +2215,8 @@ function sheetHTML(ws){
       <div><span class="p-no">(${i + 1})</span> <b>${p.answer}</b></div>
       <p class="ans-steps">${(p.steps || []).join("<br>")}</p>
     </div>`).join("");
-  return `<div class="paper sheet-problems"><h3>${esc(ws.title || "TripFix 補強プリント")}</h3>${head}${probs}<div class="p-foot">TripFix ・ 印刷レイアウト v2</div></div>
-  <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}<div class="p-foot">TripFix ・ 印刷レイアウト v2</div></div>`;
+  return `<div class="paper sheet-problems"><h3>${esc(ws.title || "TripFix 補強プリント")}</h3>${head}${probs}<div class="p-foot">TripFix ・ 印刷レイアウト v3</div></div>
+  <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}<div class="p-foot">TripFix ・ 印刷レイアウト v3</div></div>`;
 }
 function currentWorksheet(){ return state.worksheets.find(w => w.id === currentWorksheetId) || null; }
 function makeSheet(){
@@ -2234,7 +2237,7 @@ function makeSheet(){
 function renderSheetPreview(){
   const ws = currentWorksheet();
   if (!ws) return;
-  document.getElementById("sheet-preview").innerHTML = sheetHTML(ws);
+  document.getElementById("sheet-preview").innerHTML = typeof buildSheetPreview === "function" ? buildSheetPreview(ws) : sheetHTML(ws);
 }
 function printHTML(html){
   const area = document.getElementById("print-area");
@@ -2874,21 +2877,23 @@ window.__tf5 = { unitStats, unitStatusOf, buildReport, applyRepeats, finalTarget
 
 <script>
 "use strict";
-/* ================= 印刷レイアウトv2：固定ページ方式 =================
-   流し込み＋CSS改ページ任せだと、解答がわずかに1ページを超えたときに
-   白紙に近いページが1枚出る（iPhone実機で確認）。印刷幅で実測して
-   264mmの固定ページに組み直してから印刷する。 */
-const PRINT_LAYOUT_VERSION = "v2";
-function printWorksheet(ws){
+/* ================= 印刷レイアウトv3：固定ページ方式 =================
+   v2の264mmでは、Safariがヘッダー／フッターを付けたときの印刷可能高さ
+   （約250mm）を固定ページが超え、1枚が2ページに割れた（iPhone実機で確認）。
+   v3では固定ページを240mmに詰め、印刷幅で実測して組み直す。
+   画面の用紙プレビューも同じ組みページを使い、画面幅へ縮小して見せる。 */
+const PRINT_LAYOUT_VERSION = "v3";
+const TF_PAGE_H_MM = 240;
+const TF_MM = 96 / 25.4;
+function paginateSheet(ws){
   const area = document.getElementById("print-area");
   const FOOT = `<div class="p-foot">TripFix ・ 印刷レイアウト ${PRINT_LAYOUT_VERSION}</div>`;
-  // 1) 印刷幅（A4 210mm − 余白12mm×2 = 186mm）で実測する
+  // 印刷幅（A4 210mm − 余白12mm×2 = 186mm）で実測する
   area.innerHTML = `<div id="tf-probe">${sheetHTML(ws)}</div>`;
   area.style.cssText = "display:block;position:absolute;left:-9999px;top:0;width:186mm;visibility:hidden";
   const probe = area.querySelector("#tf-probe");
   for (const p of probe.querySelectorAll(".paper")) p.style.cssText = "padding:0;margin:0;border:none;box-shadow:none";
-  const MM = 96 / 25.4;
-  const BUDGET = 264 * MM - 30; // ページ高さ264mmから版表示ぶんを引いた、内容の上限(px)
+  const BUDGET = TF_PAGE_H_MM * TF_MM - 30; // ページ高さから版表示ぶんを引いた、内容の上限(px)
   const measure = paper => {
     const h3 = paper.querySelector("h3");
     const head = paper.querySelector(".p-head");
@@ -2898,7 +2903,7 @@ function printWorksheet(ws){
     const items = [...paper.querySelectorAll(".prob")].map(el => ({ html: el.outerHTML, h: el.offsetHeight + 12 }));
     return { title, headHTML, headH, items };
   };
-  const pack = m => {
+  const pack = (m, section) => {
     const pages = [];
     let cur = [], used = m.headH;
     for (const it of m.items){
@@ -2906,18 +2911,38 @@ function printWorksheet(ws){
       cur.push(it.html); used += it.h;
     }
     if (cur.length || !pages.length) pages.push(cur);
-    return pages.map((probs, i) =>
-      `<div class="paper ppage">${i === 0 ? m.title + m.headHTML : ""}${probs.join("")}${FOOT}</div>`).join("");
+    return pages.map((probs, i) => ({ section, html: `${i === 0 ? m.title + m.headHTML : ""}${probs.join("")}${FOOT}` }));
   };
-  const probPaper = probe.querySelector(".sheet-problems");
-  const ansPaper = probe.querySelector(".sheet-answers");
-  const html = pack(measure(probPaper)) + pack(measure(ansPaper));
-  // 2) 固定ページで組み直して印刷
+  const pages = [...pack(measure(probe.querySelector(".sheet-problems")), "problems"), ...pack(measure(probe.querySelector(".sheet-answers")), "answers")];
   area.style.cssText = "";
-  area.innerHTML = html;
+  area.innerHTML = "";
+  return pages;
+}
+function printWorksheet(ws){
+  const pages = paginateSheet(ws);
+  document.getElementById("print-area").innerHTML =
+    pages.map(p => `<div class="paper ppage sec-${p.section}">${p.html}</div>`).join("");
   window.print();
 }
-window.__tfPrint = { printWorksheet, PRINT_LAYOUT_VERSION };
+function buildSheetPreview(ws){
+  const pages = paginateSheet(ws);
+  const html = pages.map(p => `<div class="pv-wrap sec-${p.section}"><div class="paper pv-page">${p.html}</div></div>`).join("");
+  requestAnimationFrame(layoutSheetPreview);
+  return html;
+}
+function layoutSheetPreview(){
+  for (const wrap of document.querySelectorAll("#sheet-preview .pv-wrap")){
+    const page = wrap.querySelector(".pv-page");
+    if (!page) continue;
+    const s = wrap.clientWidth / (186 * TF_MM);
+    page.style.transform = `scale(${s})`;
+    wrap.style.height = `${TF_PAGE_H_MM * TF_MM * s}px`;
+  }
+}
+window.addEventListener("resize", layoutSheetPreview);
+const _showViewPV = showView;
+showView = function(name){ _showViewPV(name); if (name === "sheet") requestAnimationFrame(layoutSheetPreview); };
+window.__tfPrint = { printWorksheet, paginateSheet, buildSheetPreview, layoutSheetPreview, PRINT_LAYOUT_VERSION, TF_PAGE_H_MM };
 </script>
 </body>
 </html>
