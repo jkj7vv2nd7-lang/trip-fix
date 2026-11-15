@@ -143,11 +143,12 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
 html[data-theme="dark"] .paper{background:#fdfcf8}
 .paper h3{margin:0 0 4px;font-size:1.15rem}
 .paper .p-head{display:flex;gap:14px;flex-wrap:wrap;color:#555;font-size:.9rem;border-bottom:2px solid #888;padding-bottom:8px;margin-bottom:14px}
-.paper .prob{margin:0 0 18px;page-break-inside:avoid}
+.paper .prob{margin:0 0 12px;page-break-inside:avoid}
 .paper .prob .p-no{font-weight:700}
 .paper .prob .p-type{color:#777;font-size:.8rem;margin-left:8px}
-.paper .work{border-top:1px solid #ccc;margin-top:26px}
-.paper .work + .work{margin-top:22px}
+.paper .work{border-top:1px solid #ccc;margin-top:20px}
+.paper .work + .work{margin-top:16px}
+.paper .p-foot{color:#999;font-size:.72rem;text-align:right;margin-top:10px}
 .paper figure{margin:8px 0}
 .paper .ans-steps{color:#333;line-height:1.7;margin:4px 0 0}
 .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0 0 16px}
@@ -167,6 +168,10 @@ html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
   body>#print-area{display:block !important}
   #print-area .paper{border:none;box-shadow:none;border-radius:0;padding:0;margin:0}
   #print-area .sheet-answers{page-break-before:always}
+  /* 固定ページ（印刷レイアウトv2）：1ページの高さを固定し、改ページを明示する */
+  #print-area .ppage{height:264mm;page-break-after:always;position:relative}
+  #print-area .ppage:last-child{page-break-after:auto}
+  #print-area .ppage .p-foot{position:absolute;bottom:2mm;right:0;margin:0}
 }
 </style>
 </head>
@@ -2207,8 +2212,8 @@ function sheetHTML(ws){
       <div><span class="p-no">(${i + 1})</span> <b>${p.answer}</b></div>
       <p class="ans-steps">${(p.steps || []).join("<br>")}</p>
     </div>`).join("");
-  return `<div class="paper sheet-problems"><h3>${esc(ws.title || "TripFix 補強プリント")}</h3>${head}${probs}</div>
-  <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}</div>`;
+  return `<div class="paper sheet-problems"><h3>${esc(ws.title || "TripFix 補強プリント")}</h3>${head}${probs}<div class="p-foot">TripFix ・ 印刷レイアウト v2</div></div>
+  <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}<div class="p-foot">TripFix ・ 印刷レイアウト v2</div></div>`;
 }
 function currentWorksheet(){ return state.worksheets.find(w => w.id === currentWorksheetId) || null; }
 function makeSheet(){
@@ -2309,7 +2314,7 @@ function wire3(){
   document.getElementById("btn-exam-print").addEventListener("click", () => openPrint(currentExamId));
   document.getElementById("btn-home-print").addEventListener("click", () => openPrint(null));
   document.getElementById("btn-do-print").addEventListener("click", () => {
-    const ws = currentWorksheet(); if (ws) printHTML(sheetHTML(ws));
+    const ws = currentWorksheet(); if (ws) printWorksheet(ws);
   });
   document.getElementById("btn-remake-sheet").addEventListener("click", () => {
     const ws = currentWorksheet();
@@ -2864,6 +2869,55 @@ function wire6(){
 }
 wire6();
 window.__tf5 = { unitStats, unitStatusOf, buildReport, applyRepeats, finalTargets, recommendedCount };
+</script>
+
+
+<script>
+"use strict";
+/* ================= 印刷レイアウトv2：固定ページ方式 =================
+   流し込み＋CSS改ページ任せだと、解答がわずかに1ページを超えたときに
+   白紙に近いページが1枚出る（iPhone実機で確認）。印刷幅で実測して
+   264mmの固定ページに組み直してから印刷する。 */
+const PRINT_LAYOUT_VERSION = "v2";
+function printWorksheet(ws){
+  const area = document.getElementById("print-area");
+  const FOOT = `<div class="p-foot">TripFix ・ 印刷レイアウト ${PRINT_LAYOUT_VERSION}</div>`;
+  // 1) 印刷幅（A4 210mm − 余白12mm×2 = 186mm）で実測する
+  area.innerHTML = `<div id="tf-probe">${sheetHTML(ws)}</div>`;
+  area.style.cssText = "display:block;position:absolute;left:-9999px;top:0;width:186mm;visibility:hidden";
+  const probe = area.querySelector("#tf-probe");
+  for (const p of probe.querySelectorAll(".paper")) p.style.cssText = "padding:0;margin:0;border:none;box-shadow:none";
+  const MM = 96 / 25.4;
+  const BUDGET = 264 * MM - 30; // ページ高さ264mmから版表示ぶんを引いた、内容の上限(px)
+  const measure = paper => {
+    const h3 = paper.querySelector("h3");
+    const head = paper.querySelector(".p-head");
+    const headH = (h3 ? h3.offsetHeight + 4 : 0) + (head ? head.offsetHeight + 24 : 0);
+    const title = h3 ? h3.outerHTML : "";
+    const headHTML = head ? head.outerHTML : "";
+    const items = [...paper.querySelectorAll(".prob")].map(el => ({ html: el.outerHTML, h: el.offsetHeight + 12 }));
+    return { title, headHTML, headH, items };
+  };
+  const pack = m => {
+    const pages = [];
+    let cur = [], used = m.headH;
+    for (const it of m.items){
+      if (cur.length && used + it.h > BUDGET){ pages.push(cur); cur = []; used = 0; }
+      cur.push(it.html); used += it.h;
+    }
+    if (cur.length || !pages.length) pages.push(cur);
+    return pages.map((probs, i) =>
+      `<div class="paper ppage">${i === 0 ? m.title + m.headHTML : ""}${probs.join("")}${FOOT}</div>`).join("");
+  };
+  const probPaper = probe.querySelector(".sheet-problems");
+  const ansPaper = probe.querySelector(".sheet-answers");
+  const html = pack(measure(probPaper)) + pack(measure(ansPaper));
+  // 2) 固定ページで組み直して印刷
+  area.style.cssText = "";
+  area.innerHTML = html;
+  window.print();
+}
+window.__tfPrint = { printWorksheet, PRINT_LAYOUT_VERSION };
 </script>
 </body>
 </html>
