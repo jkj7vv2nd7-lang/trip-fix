@@ -203,6 +203,14 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
       <input type="file" id="photo-file" accept="image/*" class="hidden">
     </div>
     <div class="thumbs" id="photo-thumbs"></div>
+    <div class="card hidden" id="ai-read-box">
+      <h3 style="margin-top:0">AIの下書き読み取り（任意）</h3>
+      <p class="note">1枚目の写真をAIに送って、問題・○×・配点の下書きを作ります。読み取りは下書きです。取り込んだあと、入力画面で必ず確認・修正してください。</p>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="btn sub" id="btn-ai-read">AIに下書き読み取りを頼む</button>
+      </div>
+      <p class="note" id="ai-read-status" style="margin-bottom:0"></p>
+    </div>
     <div class="btn-row">
       <button class="btn" id="btn-to-confirm">問題の入力へ進む</button>
       <button class="btn sub" id="btn-add-back">ホームへ戻る（下書き保存）</button>
@@ -281,6 +289,27 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
         <button class="btn sub" id="btn-tts-stop">停止</button>
       </div>
       <p class="note" id="tts-status" style="margin-bottom:0">解説を声で聞けます。数式は読みやすい言い方に変えて読みます。</p>
+    </div>
+    <div class="card hidden" id="ai-explain-box">
+      <h3 style="margin-top:0">AIの解説（任意）</h3>
+      <p class="note">AIに解説の下書きを作らせます。下書きは、あなたが内容を確認して「採用する」を押すまで使われません。</p>
+      <div class="btn-row" style="margin:0">
+        <button class="btn sub" id="btn-ai-explain">AIに解説の下書きを頼む</button>
+      </div>
+      <p class="note" id="ai-explain-status" style="margin-bottom:0"></p>
+    </div>
+    <div class="card hidden" id="ai-draft-box">
+      <h3 style="margin-top:0">AIの下書き（確認してください）</h3>
+      <p class="note" id="ai-draft-warn" style="color:var(--danger);font-weight:700"></p>
+      <div id="ai-draft-body"></div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="btn" id="btn-ai-adopt">この下書きを採用する</button>
+        <button class="btn sub" id="btn-ai-discard">やめる</button>
+      </div>
+    </div>
+    <div class="card hidden" id="ai-adopted-box">
+      <h3 style="margin-top:0">AIの下書き解説（確認して採用したもの）</h3>
+      <div id="ai-adopted-body"></div>
     </div>
     <div class="btn-row">
       <button class="btn sub" id="btn-report">この解説は正しくないかも</button>
@@ -386,6 +415,40 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
       <label class="chip" style="margin-top:12px"><input type="checkbox" id="set-dark"> ダークモード</label>
     </div>
     <div class="card">
+      <h3 style="margin-top:0">AIモード（任意）</h3>
+      <p class="note">AIは使わなくても、すべての機能が使えます。使う場合は、あなた自身のAPIキーで、選んだAIサービスにつなぎます。初期設定はオフです。</p>
+      <label class="chip"><input type="checkbox" id="ai-enabled"> AIモードを使う</label>
+      <div id="ai-fields" class="hidden">
+        <label class="f" for="ai-provider">AIサービス</label>
+        <select id="ai-provider">
+          <option value="gemini">Gemini</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Claude</option>
+          <option value="compat">OpenAI互換サービス</option>
+          <option value="ollama">Ollama（自分のPC）</option>
+        </select>
+        <div id="ai-key-row">
+          <label class="f" for="ai-key">APIキー（この端末の中にだけ保存されます）</label>
+          <input type="password" id="ai-key" autocomplete="off" placeholder="キーを入力">
+        </div>
+        <div id="ai-base-row" class="hidden">
+          <label class="f" for="ai-base">接続先のURL（OpenAI互換）</label>
+          <input type="text" id="ai-base" placeholder="例：https://example.com">
+        </div>
+        <div id="ai-ollama-row" class="hidden">
+          <label class="f" for="ai-ollama-url">OllamaのURL</label>
+          <input type="text" id="ai-ollama-url" placeholder="http://localhost:11434">
+        </div>
+        <label class="f" for="ai-model">モデル名</label>
+        <input type="text" id="ai-model" autocomplete="off" placeholder="モデル名を入力">
+        <div class="btn-row">
+          <button class="btn sub" id="btn-ai-test">接続テスト</button>
+        </div>
+        <p class="note" id="ai-test-result" style="margin-bottom:0"></p>
+        <p class="note" style="margin-bottom:0">AIに送られるのは、あなたが「AIに頼む」ボタンを押したときの、その写真や問題の内容だけです。AIの読み取りと解説は必ず「下書き」で、あなたが確認してから取り込みます。そのまま保存されることはありません。</p>
+      </div>
+    </div>
+    <div class="card">
       <h3 style="margin-top:0">データの管理</h3>
       <div class="meter"><div id="meter-bar" style="width:0%"></div></div>
       <p class="note" id="meter-detail">読み込み中…</p>
@@ -435,6 +498,18 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
   </div>
 </div>
 
+<div class="modal" id="ai-modal" role="dialog" aria-label="AIの下書き読み取り結果">
+  <div class="box">
+    <h3 style="margin-top:0">AIの下書き読み取り結果</h3>
+    <p class="note">読み取りは下書きです。取り込んだあと、入力画面で必ず確認・修正してください。違っているところは直してから確定します。</p>
+    <div id="ai-draft-list"></div>
+    <div class="btn-row" style="margin-bottom:0">
+      <button class="btn" id="btn-ai-import">この内容で問題を取り込む</button>
+      <button class="btn sub" id="btn-ai-cancel">やめる</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div id="print-area"></div>
 
@@ -478,7 +553,11 @@ function defaultState(){
   return {
     version: 1,
     profile: { name:"", grade:"中2" },
-    settings: { dark:false, fontSize:"medium", speechRate:1 },
+    settings: { dark:false, fontSize:"medium", speechRate:1,
+      ai: { enabled:false, provider:"gemini",
+        keys:{ gemini:"", openai:"", claude:"", compat:"" },
+        models:{ gemini:"gemini-3.6-flash", openai:"", claude:"", compat:"", ollama:"" },
+        compatBase:"", ollamaUrl:"http://localhost:11434" } },
     exams: [], worksheets: [], correctionLog: [], reportLog: [],
   };
 }
@@ -2212,6 +2291,302 @@ function wire3(){
 }
 wire3();
 window.__tf3ui = { openPrint, makeSheet, currentWorksheet, renderReview, saveReview, printTargets };
+</script>
+
+
+<script>
+"use strict";
+/* ================= フェーズ4：任意AIモード ================= */
+const $id = id => document.getElementById(id);
+const AI_PROVIDERS = {
+  gemini: { name: "Gemini", needsKey: true },
+  openai: { name: "OpenAI", needsKey: true },
+  claude: { name: "Claude", needsKey: true },
+  compat: { name: "OpenAI互換", needsKey: true },
+  ollama: { name: "Ollama", needsKey: false },
+};
+function defaultAi(){
+  return { enabled: false, provider: "gemini",
+    keys: { gemini: "", openai: "", claude: "", compat: "" },
+    models: { gemini: "gemini-3.6-flash", openai: "", claude: "", compat: "", ollama: "" },
+    compatBase: "", ollamaUrl: "http://localhost:11434" };
+}
+function aiCfg(){
+  const s = state.settings;
+  if (!s.ai) s.ai = defaultAi();
+  const d = defaultAi();
+  s.ai.keys = Object.assign({}, d.keys, s.ai.keys || {});
+  s.ai.models = Object.assign({}, d.models, s.ai.models || {});
+  if (!AI_PROVIDERS[s.ai.provider]) s.ai.provider = "gemini";
+  return s.ai;
+}
+function aiReady(){
+  const c = aiCfg();
+  if (!c.enabled) return false;
+  if (AI_PROVIDERS[c.provider].needsKey && !c.keys[c.provider]) return false;
+  if (!c.models[c.provider]) return false;
+  return true;
+}
+function dataUrlParts(dataUrl){
+  const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || "");
+  return m ? { mime: m[1], b64: m[2] } : { mime: "image/jpeg", b64: "" };
+}
+async function aiChat({ text, imageDataUrl = null, jsonMode = false }){
+  const c = aiCfg();
+  const provider = c.provider;
+  const model = c.models[provider];
+  const key = c.keys[provider];
+  let url, headers = { "Content-Type": "application/json" }, body;
+  if (provider === "gemini"){
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    headers["x-goog-api-key"] = key;
+    const parts = [{ text }];
+    if (imageDataUrl){ const p = dataUrlParts(imageDataUrl); parts.push({ inline_data: { mime_type: p.mime, data: p.b64 } }); }
+    body = { contents: [{ parts }] };
+    if (jsonMode) body.generationConfig = { responseMimeType: "application/json" };
+  } else if (provider === "openai" || provider === "compat"){
+    const base = provider === "compat" ? (c.compatBase || "").replace(/\/$/, "") : "https://api.openai.com";
+    if (!base) throw new Error("接続先のURLが未設定です");
+    url = `${base}/v1/chat/completions`;
+    headers["Authorization"] = `Bearer ${key}`;
+    const content = imageDataUrl ? [{ type: "text", text }, { type: "image_url", image_url: { url: imageDataUrl } }] : text;
+    body = { model, messages: [{ role: "user", content }] };
+    if (jsonMode) body.response_format = { type: "json_object" };
+  } else if (provider === "claude"){
+    url = "https://api.anthropic.com/v1/messages";
+    headers["x-api-key"] = key;
+    headers["anthropic-version"] = "2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+    let content = text;
+    if (imageDataUrl){ const p = dataUrlParts(imageDataUrl); content = [{ type: "image", source: { type: "base64", media_type: p.mime, data: p.b64 } }, { type: "text", text }]; }
+    body = { model, max_tokens: 3000, messages: [{ role: "user", content }] };
+  } else if (provider === "ollama"){
+    url = `${(c.ollamaUrl || "http://localhost:11434").replace(/\/$/, "")}/api/chat`;
+    const msg = { role: "user", content: text };
+    if (imageDataUrl) msg.images = [dataUrlParts(imageDataUrl).b64];
+    body = { model, stream: false, messages: [msg] };
+    if (jsonMode) body.format = "json";
+  }
+  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!res.ok){
+    let detail = "";
+    try { detail = (await res.text()).slice(0, 160); } catch (e) { /* noop */ }
+    throw new Error(`HTTP ${res.status} ${detail}`);
+  }
+  const data = await res.json();
+  if (provider === "gemini"){
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    return parts.map(p => p.text || "").join("");
+  }
+  if (provider === "openai" || provider === "compat") return data?.choices?.[0]?.message?.content || "";
+  if (provider === "claude") return (data?.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+  return data?.message?.content || "";
+}
+function parseJsonLoose(s){
+  if (!s) throw new Error("応答が空です");
+  const t = String(s).replace(/```json|```/g, "").trim();
+  const start = t.indexOf("{"), end = t.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("JSONが見つかりません");
+  return JSON.parse(t.slice(start, end + 1));
+}
+function aiErrorText(err){
+  const m = String(err && err.message || err);
+  if (/Failed to fetch|NetworkError/.test(m)) return "つながりませんでした（通信環境や接続先を確認してください）";
+  if (/HTTP 401|HTTP 403/.test(m)) return "キーが違うか、権限がないようです";
+  if (/HTTP 404/.test(m)) return "モデル名か接続先が違うようです";
+  if (/HTTP 429/.test(m)) return "利用上限に達しているようです。時間をおいてください";
+  return m.slice(0, 120);
+}
+
+/* ---- 設定画面 ---- */
+function fillAiSettings(){
+  const c = aiCfg();
+  $id("ai-enabled").checked = !!c.enabled;
+  $id("ai-fields").classList.toggle("hidden", !c.enabled);
+  $id("ai-provider").value = c.provider;
+  $id("ai-key-row").classList.toggle("hidden", !AI_PROVIDERS[c.provider].needsKey);
+  $id("ai-base-row").classList.toggle("hidden", c.provider !== "compat");
+  $id("ai-ollama-row").classList.toggle("hidden", c.provider !== "ollama");
+  $id("ai-key").value = c.keys[c.provider] || "";
+  $id("ai-model").value = c.models[c.provider] || "";
+  $id("ai-base").value = c.compatBase || "";
+  $id("ai-ollama-url").value = c.ollamaUrl || "http://localhost:11434";
+}
+function refreshAiVisibility(){
+  const on = !!aiCfg().enabled;
+  $id("ai-read-box").classList.toggle("hidden", !on);
+  $id("ai-explain-box").classList.toggle("hidden", !on);
+}
+const _renderSettingsP4 = renderSettings;
+renderSettings = async function(){ await _renderSettingsP4(); fillAiSettings(); };
+const _showViewP4 = showView;
+showView = function(name){ _showViewP4(name); refreshAiVisibility(); };
+
+/* ---- 写真の下書き読み取り ---- */
+let aiDraftItems = null;
+function renderAiDraftList(){
+  $id("ai-draft-list").innerHTML = aiDraftItems.map(d => `
+    <div class="item-card">
+      <div class="item-top"><span class="no">問題 ${esc(d.no ?? "")}</span><span class="tag">${esc(d.mark ?? "")}</span><span class="tag">${esc(d.unit ?? "単元不明")}</span></div>
+      <div style="margin:6px 0">${esc(d.text ?? "")}</div>
+      <div class="note">配点 ${esc(d.points ?? "—")} 点／自分の答え：${esc(d.myAnswer ?? "—")}／正答：${esc(d.correctAnswer ?? "—")}</div>
+    </div>`).join("");
+}
+async function aiReadPhoto(){
+  const status = $id("ai-read-status");
+  const e = currentExam();
+  if (!e || !(e.photoIds || []).length){ toast("写真がありません"); return; }
+  if (!aiReady()){ status.textContent = "設定で、AIサービス・APIキー・モデル名を確認してください。"; return; }
+  status.textContent = "AIに写真を送って、読み取っています…";
+  try {
+    const rec = await PhotoDB.get(e.photoIds[0]);
+    if (!rec) throw new Error("写真が見つかりません");
+    const dataUrl = await blobToDataUrl(rec.blob);
+    const unitNames = UNITS.map(u => u.name).join("、");
+    const prompt = [
+      "あなたは答案の読み取り助手です。採点済み（○×△が付いた）数学の答案の写真から、各問題を読み取ってください。",
+      "出力はJSONだけにしてください。説明文は書かないでください。",
+      '形式：{"items":[{"no":"1","text":"問題文","points":10,"mark":"○","myAnswer":"自分の答え","correctAnswer":"正しい答え","unit":"一次関数"}]}',
+      "mark は写真の印どおりに ○ か × か △。読めない項目は空文字にしてください。",
+      `unit は次の中から最も近いものを選んでください：${unitNames}`,
+      "名前や学校名は読み取らないでください。",
+    ].join("\n");
+    const out = await aiChat({ text: prompt, imageDataUrl: dataUrl, jsonMode: true });
+    const parsed = parseJsonLoose(out);
+    const items = Array.isArray(parsed.items) ? parsed.items : [];
+    if (!items.length) throw new Error("問題が読み取れませんでした");
+    aiDraftItems = items;
+    renderAiDraftList();
+    $id("ai-modal").classList.add("open");
+    status.textContent = "";
+  } catch (err) {
+    status.textContent = "読み取れませんでした：" + aiErrorText(err);
+  }
+}
+function importAiDraft(){
+  const e = currentExam();
+  if (!e || !aiDraftItems) return;
+  for (const d of aiDraftItems){
+    const unit = UNITS.find(u => u.name === d.unit) || UNITS.find(u => d.unit && u.name.includes(d.unit)) || null;
+    const mark = d.mark === "×" ? "batsu" : d.mark === "△" ? "sankaku" : "maru";
+    const points = Number(d.points) || 0;
+    e.items.push({
+      id: uid(), no: String(d.no ?? ""), text: String(d.text ?? ""), points,
+      score: mark === "maru" ? points : 0,
+      unitId: unit ? unit.id : "", mark,
+      myAnswer: String(d.myAnswer ?? ""), steps: "", causes: [], basis: "",
+      firstBadLine: "", correctAnswer: String(d.correctAnswer ?? ""), teacherComment: "",
+    });
+  }
+  touchExam();
+  const n = aiDraftItems.length;
+  aiDraftItems = null;
+  $id("ai-modal").classList.remove("open");
+  toast(`${n} 件を取り込みました。「問題の入力へ進む」から確認してください`);
+}
+
+/* ---- 解説の下書き ---- */
+let aiDraftExplain = null;
+function explainSectionsHTML(obj){
+  const rows = [["① 自分の解答のどこが違うか", obj.s1], ["② 考え方", obj.s2], ["③ 解き方", obj.s3], ["④ 見分けるコツ", obj.s4]];
+  return rows.map(([t, b]) => `<h4>${t}</h4><p>${esc(b || "").replace(/\n/g, "<br>")}</p>`).join("");
+}
+async function aiExplain(){
+  const status = $id("ai-explain-status");
+  const e = state.exams.find(x => x.id === explainCtx.examId);
+  const it = e ? (e.items || []).find(x => x.id === explainCtx.itemId) : null;
+  if (!it) return;
+  if (!aiReady()){ status.textContent = "設定で、AIサービス・APIキー・モデル名を確認してください。"; return; }
+  status.textContent = "AIに下書きを作らせています…";
+  try {
+    const unit = UNITS.find(u => u.id === it.unitId);
+    const prompt = [
+      "あなたは中高生に数学を教える先生です。次の間違えた問題について、解説の下書きを作ってください。",
+      "出力はJSONだけにしてください。",
+      '形式：{"s1":"自分の解答のどこが違うか","s2":"考え方","s3":"解き方","s4":"見分けるコツ"}',
+      "各項目は2〜4文、平易な日本語で。数式は x^2、√3、(x+1)/2 のような普通の書き方で書いてください。",
+      `問題：${it.text || "（問題文なし）"}`,
+      `単元：${unit ? unit.name : "不明"}`,
+      `自分の答え：${it.myAnswer || "（なし）"}`,
+      `途中式：${it.steps || "（なし）"}`,
+      `正しい答え：${it.correctAnswer || "（なし）"}`,
+      `間違えた原因：${(it.causes || []).join("、") || "（なし）"}`,
+    ].join("\n");
+    const out = await aiChat({ text: prompt, jsonMode: true });
+    const parsed = parseJsonLoose(out);
+    if (!parsed.s1 && !parsed.s2 && !parsed.s3 && !parsed.s4) throw new Error("下書きが空です");
+    aiDraftExplain = parsed;
+    const nums = String(it.correctAnswer || "").match(/-?\d+(\.\d+)?/g) || [];
+    const all = [parsed.s1, parsed.s2, parsed.s3, parsed.s4].join(" ");
+    $id("ai-draft-warn").textContent =
+      nums.length && !nums.some(n => all.includes(n))
+        ? `注意：下書きの中に、正答（${it.correctAnswer}）の数字が見当たりません。よく確認してください。`
+        : "";
+    $id("ai-draft-body").innerHTML = explainSectionsHTML(parsed);
+    $id("ai-draft-box").classList.remove("hidden");
+    status.textContent = "";
+  } catch (err) {
+    status.textContent = "作れませんでした：" + aiErrorText(err);
+  }
+}
+function renderAiAdopted(){
+  const e = state.exams.find(x => x.id === explainCtx.examId);
+  const it = e ? (e.items || []).find(x => x.id === explainCtx.itemId) : null;
+  const box = $id("ai-adopted-box");
+  if (it && it.aiExplanation){
+    $id("ai-adopted-body").innerHTML = explainSectionsHTML(it.aiExplanation);
+    box.classList.remove("hidden");
+  } else {
+    box.classList.add("hidden");
+  }
+}
+const _renderExplainP4 = renderExplain;
+renderExplain = function(){ _renderExplainP4(); $id("ai-draft-box").classList.add("hidden"); $id("ai-explain-status").textContent = ""; renderAiAdopted(); };
+
+function wire4(){
+  $id("ai-enabled").addEventListener("change", ev => {
+    aiCfg().enabled = ev.target.checked;
+    saveState(); fillAiSettings(); refreshAiVisibility();
+  });
+  $id("ai-provider").addEventListener("change", ev => {
+    aiCfg().provider = ev.target.value;
+    saveState(); fillAiSettings();
+  });
+  $id("ai-key").addEventListener("change", ev => { const c = aiCfg(); c.keys[c.provider] = ev.target.value.trim(); saveState(); });
+  $id("ai-model").addEventListener("change", ev => { const c = aiCfg(); c.models[c.provider] = ev.target.value.trim(); saveState(); });
+  $id("ai-base").addEventListener("change", ev => { aiCfg().compatBase = ev.target.value.trim(); saveState(); });
+  $id("ai-ollama-url").addEventListener("change", ev => { aiCfg().ollamaUrl = ev.target.value.trim(); saveState(); });
+  $id("btn-ai-test").addEventListener("click", async () => {
+    const out = $id("ai-test-result");
+    if (!aiReady()){ out.textContent = "キーとモデル名を入れてから試してください（Ollamaはモデル名だけ）。"; return; }
+    out.textContent = "接続しています…";
+    try {
+      const r = await aiChat({ text: "接続テストです。「OK」とだけ答えてください。" });
+      out.textContent = r ? "接続できました。" : "応答が空でした。モデル名を確認してください。";
+    } catch (err) {
+      out.textContent = "接続できませんでした：" + aiErrorText(err);
+    }
+  });
+  $id("btn-ai-read").addEventListener("click", aiReadPhoto);
+  $id("btn-ai-cancel").addEventListener("click", () => { aiDraftItems = null; $id("ai-modal").classList.remove("open"); });
+  $id("btn-ai-import").addEventListener("click", importAiDraft);
+  $id("btn-ai-explain").addEventListener("click", aiExplain);
+  $id("btn-ai-discard").addEventListener("click", () => { aiDraftExplain = null; $id("ai-draft-box").classList.add("hidden"); });
+  $id("btn-ai-adopt").addEventListener("click", () => {
+    const e = state.exams.find(x => x.id === explainCtx.examId);
+    const it = e ? (e.items || []).find(x => x.id === explainCtx.itemId) : null;
+    if (!it || !aiDraftExplain) return;
+    it.aiExplanation = Object.assign({}, aiDraftExplain, { at: Date.now() });
+    saveState();
+    aiDraftExplain = null;
+    $id("ai-draft-box").classList.add("hidden");
+    renderAiAdopted();
+    toast("AIの下書きを採用しました");
+  });
+  refreshAiVisibility();
+}
+wire4();
+window.__tf4 = { aiCfg, aiReady, aiChat, parseJsonLoose, aiReadPhoto, aiExplain, importAiDraft };
 </script>
 </body>
 </html>
