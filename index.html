@@ -150,6 +150,16 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
 .paper .work + .work{margin-top:22px}
 .paper figure{margin:8px 0}
 .paper .ans-steps{color:#333;line-height:1.7;margin:4px 0 0}
+.map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0 0 16px}
+.map-chip{text-align:left;border-radius:12px;padding:10px 12px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.map-chip .u-name{font-weight:700;display:block}
+.map-chip .u-status{font-size:.85rem;color:var(--sub)}
+.map-chip[data-status="done"]{border-color:var(--accent);background:#e7f2ec}
+.map-chip[data-status="doing"]{border-color:var(--accent);border-style:dashed}
+.map-chip[data-status="weak"]{border-color:var(--danger);border-style:double;border-width:3px}
+.map-chip[data-status="none"]{opacity:.75}
+html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
+.rep-evidence{background:var(--chip);border-radius:8px;padding:8px 10px;font-size:.9rem;margin-top:8px}
 #print-area{display:none}
 @media print{
   @page{size:A4;margin:12mm}
@@ -178,6 +188,8 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
       <button class="btn" id="btn-new-exam">＋ 答案を追加する</button>
       <button class="btn sub" id="btn-global-analysis">分析を見る</button>
       <button class="btn sub" id="btn-home-print">補強プリントを作る</button>
+      <button class="btn sub" id="btn-home-report">週間レポート</button>
+      <button class="btn sub" id="btn-home-map">達成マップ</button>
     </div>
     <div id="home-review-note"></div>
     <div id="exam-list"></div>
@@ -340,6 +352,13 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
     <p class="note" style="margin-top:0">間違えた問題と同じ型の、新しい問題を作ります。元の問題そのものは載せません。問題はすべて自動で検算され、正しいものだけが出ます。</p>
     <label class="f">対象</label>
     <select id="print-source"></select>
+    <div id="final-fields" class="hidden">
+      <label class="f">テスト範囲（単元を選んでください）</label>
+      <div id="final-units" class="kv"></div>
+      <label class="f" for="final-days">テストまでの日数</label>
+      <input type="number" id="final-days" min="0" max="60" value="3">
+      <p class="note" id="final-note"></p>
+    </div>
     <label class="f">問題数</label>
     <div class="seg" id="print-count">
       <button data-count="5">5問</button>
@@ -351,6 +370,8 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
       <button data-level="basic">基礎のみ</button>
       <button data-level="standard" class="sel-maru">標準まで</button>
     </div>
+    <label class="chip" style="margin-top:10px"><input type="checkbox" id="print-repeat" checked> 前に間違えた型も混ぜる</label>
+    <p class="note">時間を空けた復習です。前に間違えた単元の問題には「前に間違えた型です」と小さく付きます。克服済みの単元は間隔を長くして、たまにだけ混ぜます。</p>
     <p class="note" id="print-target-note"></p>
     <div class="btn-row">
       <button class="btn" id="btn-make-sheet">プリントを作る</button>
@@ -381,6 +402,33 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
     <div class="btn-row">
       <button class="btn" id="btn-review-save">記録して終える</button>
       <button class="btn sub" id="btn-review-back">プリントに戻る</button>
+    </div>
+  </section>
+
+  <!-- 週間レポート -->
+  <section class="view" id="view-report">
+    <h2>週間レポート「ミスのクセ」</h2>
+    <p class="note" style="margin-top:0">複数のテストを横断して、ミスの傾向を文章にします。根拠となった実際のミスも一緒に示します。</p>
+    <div id="report-body"></div>
+    <div class="btn-row">
+      <button class="btn sub" id="btn-report-print">このレポートを印刷する</button>
+      <button class="btn sub" id="btn-report-back">ホームへ戻る</button>
+    </div>
+  </section>
+
+  <!-- 達成マップ -->
+  <section class="view" id="view-map">
+    <h2>達成マップ</h2>
+    <p class="note" style="margin-top:0">単元ごとの状態です。色だけでなく、印と言葉でも分かるようにしています。単元を押すと、その単元の補強プリントを作れます。</p>
+    <div class="card">
+      <div class="kv">
+        <span class="tag">◎ 克服済み</span><span class="tag">○ 克服中</span><span class="tag">△ 弱点</span><span class="tag">― 未着手</span>
+      </div>
+      <p class="note" style="margin-bottom:0">克服済み＝ミスがない、または解き直しですべて○になった単元。克服中＝解き直しで○が付いたミスがある単元。弱点＝まだ解き直せていないミスがある単元。</p>
+    </div>
+    <div id="map-body"></div>
+    <div class="btn-row">
+      <button class="btn sub" id="btn-map-back">ホームへ戻る</button>
     </div>
   </section>
 
@@ -2111,6 +2159,7 @@ function openPrint(examId){
   for (const u of UNITS){
     if (unitHasTypes(u.id)) sel.innerHTML += `<option value="unit:${u.id}">単元：${u.grade} ${esc(u.name)} から</option>`;
   }
+  sel.innerHTML += `<option value="final:1">最終確認プリント（テスト範囲から）</option>`;
   if (examId) sel.value = `exam:${examId}`;
   updatePrintNote();
   showView("print");
@@ -2148,7 +2197,7 @@ function sheetHTML(ws){
   const head = `<div class="p-head"><span>名前：＿＿＿＿＿＿＿＿</span><span>${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日</span><span>目安 ${ws.problems.length * 2} 分</span><span>${esc(ws.label)}</span></div>`;
   const probs = ws.problems.map((p, i) => `
     <div class="prob">
-      <div><span class="p-no">(${i + 1})</span><span class="p-type">${esc(p.typeName)}${p.twist ? "・ひねり" : ""}</span></div>
+      <div><span class="p-no">(${i + 1})</span><span class="p-type">${esc(p.typeName)}${p.twist ? "・ひねり" : ""}${p.repeat ? "・前に間違えた型です" : ""}</span></div>
       <div>${p.text}</div>
       ${p.svg ? `<figure>${p.svg}</figure>` : ""}
       <div class="work"></div><div class="work"></div><div class="work"></div>
@@ -2158,17 +2207,18 @@ function sheetHTML(ws){
       <div><span class="p-no">(${i + 1})</span> <b>${p.answer}</b></div>
       <p class="ans-steps">${(p.steps || []).join("<br>")}</p>
     </div>`).join("");
-  return `<div class="paper sheet-problems"><h3>TripFix 補強プリント</h3>${head}${probs}</div>
+  return `<div class="paper sheet-problems"><h3>${esc(ws.title || "TripFix 補強プリント")}</h3>${head}${probs}</div>
   <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}</div>`;
 }
 function currentWorksheet(){ return state.worksheets.find(w => w.id === currentWorksheetId) || null; }
 function makeSheet(){
-  const { types, origins, label } = printTargets();
+  const { types, origins, label, title } = printTargets();
   if (!types.length){ toast("対象の問題がありません。対象か難易度を変えてください"); return; }
-  const problems = buildProblems(types, printCfg.count, (Date.now() % 2147483647) >>> 0);
+  let problems = buildProblems(types, printCfg.count, (Date.now() % 2147483647) >>> 0);
+  if (typeof applyRepeats === "function") problems = applyRepeats(problems, printCfg.count);
   if (!problems.length){ toast("問題を作れませんでした。もう一度お試しください"); return; }
   for (const p of problems){ if (origins[p.unitId]) p.originItemId = origins[p.unitId]; p.params = undefined; }
-  const ws = { id: uid(), createdAt: Date.now(), label, problems, results: null };
+  const ws = { id: uid(), createdAt: Date.now(), label, title: title || null, problems, results: null };
   state.worksheets.unshift(ws);
   currentWorksheetId = ws.id;
   saveState();
@@ -2587,6 +2637,233 @@ function wire4(){
 }
 wire4();
 window.__tf4 = { aiCfg, aiReady, aiChat, parseJsonLoose, aiReadPhoto, aiExplain, importAiDraft };
+</script>
+
+
+<script>
+"use strict";
+/* ================= v1.1：週間レポート・達成マップ・同じミス・最終確認 ================= */
+function unitStats(){
+  const out = {};
+  for (const ex of state.exams){
+    if (ex.status !== "done") continue;
+    for (const it of ex.items || []){
+      if (!it.unitId) continue;
+      const s = out[it.unitId] || (out[it.unitId] = { items: 0, misses: 0, reviewedOk: 0, lastMissDate: null, lastMissExamTitle: "", examples: [] });
+      s.items++;
+      if (it.mark === "batsu" || it.mark === "sankaku"){
+        s.misses++;
+        if (it.review && it.review.ok) s.reviewedOk++;
+        const d = ex.date ? new Date(ex.date + "T00:00:00") : new Date(ex.createdAt);
+        if (!s.lastMissDate || d > s.lastMissDate){ s.lastMissDate = d; s.lastMissExamTitle = ex.title || "答案"; }
+        s.examples.push({ examTitle: ex.title || "答案", no: it.no, text: it.text || "", causes: it.causes || [] });
+      }
+    }
+  }
+  return out;
+}
+function unitStatusOf(s){
+  if (!s || s.items === 0) return { key: "none", label: "未着手", mark: "―" };
+  if (s.misses === 0 || s.reviewedOk >= s.misses) return { key: "done", label: "克服済み", mark: "◎" };
+  if (s.reviewedOk > 0) return { key: "doing", label: "克服中", mark: "○" };
+  return { key: "weak", label: "弱点", mark: "△" };
+}
+
+/* ---- 週間レポート ---- */
+function buildReport(){
+  const done = state.exams.filter(e => e.status === "done");
+  const now = Date.now();
+  const weekly = done.filter(e => {
+    const t = e.date ? new Date(e.date + "T00:00:00").getTime() : e.createdAt;
+    return now - t <= 7 * 86400000 && t <= now + 86400000;
+  });
+  const scope = weekly.length ? weekly : done;
+  const scopeLabel = weekly.length ? `この1週間（答案 ${scope.length} 件）` : `これまで全体（答案 ${scope.length} 件）`;
+  const agg = aggregate(scope);
+  const cards = [];
+  const measures = [];
+  if (!scope.length || agg.misses === 0){
+    cards.push({ title: "ミスの記録がまだありません", body: "採点済みの答案を記録して、×や△に原因タグを付けると、ここに傾向が出ます。" });
+    return { scopeLabel, cards, measures };
+  }
+  // 原因の傾向（失点の多い順）
+  const causes = [...agg.byCause.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.lost - a.lost || b.count - a.count);
+  const top = causes[0];
+  const examsWithCause = new Set();
+  let example = null;
+  for (const ex of scope) for (const it of ex.items || []){
+    if ((it.causes || []).includes(top.name)){
+      examsWithCause.add(ex.id);
+      if (!example) example = { examTitle: ex.title || "答案", no: it.no, text: it.text || "" };
+    }
+  }
+  cards.push({
+    title: `いちばん多いミスは「${top.name}」`,
+    body: `${scopeLabel}で ${top.count} 件、失点は ${top.lost} 点でした。` + (examsWithCause.size >= 2 ? `${examsWithCause.size} つのテストで繰り返し出ているので、クセになっているかもしれません。` : ""),
+    example,
+  });
+  const guide = CAUSE_GUIDE[top.name];
+  if (guide && guide.check) measures.push(`「${top.name}」対策：${guide.check}`);
+  // 単元の傾向
+  const units = [...agg.byUnit.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => b.lost - a.lost);
+  const topU = units[0];
+  const uName = (UNITS.find(u => u.id === topU.id) || {}).name || topU.id;
+  let uExample = null;
+  for (const ex of scope) for (const it of ex.items || []){
+    if (it.unitId === topU.id && (it.mark === "batsu" || it.mark === "sankaku") && !uExample)
+      uExample = { examTitle: ex.title || "答案", no: it.no, text: it.text || "" };
+  }
+  cards.push({
+    title: `弱点の単元は「${uName}」`,
+    body: `失点 ${topU.lost} 点、ミス ${topU.count} 件でした。この単元の補強プリントで集中的に直すのが近道です。`,
+    example: uExample,
+  });
+  measures.push(`「${uName}」の補強プリントを1枚作って解き直す`);
+  // 克服の進み具合
+  let reviewedOk = 0, totalMisses = 0;
+  for (const ex of scope) for (const it of ex.items || []){
+    if (it.mark === "batsu" || it.mark === "sankaku"){ totalMisses++; if (it.review && it.review.ok) reviewedOk++; }
+  }
+  if (reviewedOk > 0){
+    cards.push({ title: "克服が進んでいます", body: `解き直しで○になった問題が ${reviewedOk} 件あります（ミス ${totalMisses} 件のうち）。この調子で、残りのミスもプリントで潰していきましょう。` });
+  } else if (totalMisses > 0){
+    cards.push({ title: "解き直しはこれから", body: `ミス ${totalMisses} 件の解き直しがまだ記録されていません。補強プリントを解いて記録すると、ここに克服の進み具合が出ます。` });
+    measures.push("補強プリントを解いたら、解き直しの記録を付ける");
+  }
+  return { scopeLabel, cards, measures: [...new Set(measures)].slice(0, 3) };
+}
+function renderReport(){
+  const r = buildReport();
+  const box = document.getElementById("report-body");
+  box.innerHTML =
+    `<p class="note">対象：${esc(r.scopeLabel)}</p>` +
+    r.cards.map(c => `
+      <div class="card">
+        <h3 style="margin-top:0">${esc(c.title)}</h3>
+        <p style="margin:0">${esc(c.body)}</p>
+        ${c.example ? `<div class="rep-evidence">根拠：『${esc(c.example.examTitle)}』問題 ${esc(c.example.no)}「${esc(c.example.text.slice(0, 60))}」</div>` : ""}
+      </div>`).join("") +
+    (r.measures.length ? `
+      <div class="card">
+        <h3 style="margin-top:0">対策（${r.measures.length}つ）</h3>
+        <ol style="margin:0;padding-left:22px;line-height:1.8">${r.measures.map(m => `<li>${esc(m)}</li>`).join("")}</ol>
+      </div>` : "");
+}
+
+/* ---- 達成マップ ---- */
+function renderMap(){
+  const stats = unitStats();
+  const grades = [...new Set(UNITS.map(u => u.grade))];
+  document.getElementById("map-body").innerHTML = grades.map(g => `
+    <h3>${g}</h3>
+    <div class="map-grid">
+      ${UNITS.filter(u => u.grade === g).map(u => {
+        const st = unitStatusOf(stats[u.id]);
+        const s = stats[u.id];
+        return `<button class="map-chip" data-status="${st.key}" data-unit="${u.id}">
+          <span class="u-name">${st.mark} ${esc(u.name)}</span>
+          <span class="u-status">${st.label}${s && s.items ? `（問題 ${s.items} 件・ミス ${s.misses} 件）` : ""}</span>
+        </button>`;
+      }).join("")}
+    </div>`).join("");
+  document.querySelectorAll(".map-chip").forEach(chip => chip.addEventListener("click", () => {
+    openPrint(null);
+    const sel = document.getElementById("print-source");
+    sel.value = `unit:${chip.dataset.unit}`;
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    updatePrintNote();
+  }));
+}
+
+/* ---- 最終確認プリント ---- */
+function finalDays(){ return Math.max(0, Number(document.getElementById("final-days").value) || 0); }
+function recommendedCount(days){ return days >= 7 ? 20 : days >= 3 ? 15 : days >= 1 ? 10 : 5; }
+function updateFinalNote(){
+  const days = finalDays();
+  const rec = recommendedCount(days);
+  printCfg.count = rec;
+  document.querySelectorAll("#print-count button").forEach(b => b.classList.toggle("sel-maru", Number(b.dataset.count) === rec));
+  document.getElementById("final-note").textContent =
+    `テストまで ${days} 日なので、おすすめは ${rec} 問です（過去のミスがある単元を優先します）。`;
+  updatePrintNote();
+}
+function finalTargets(){
+  const checked = [...document.querySelectorAll(".final-unit:checked")].map(el => el.value);
+  const stats = unitStats();
+  const withMiss = checked.filter(id => stats[id] && stats[id].misses > 0)
+    .sort((a, b) => (stats[b].misses || 0) - (stats[a].misses || 0));
+  const rest = checked.filter(id => !withMiss.includes(id));
+  const types = [];
+  for (const id of [...withMiss, ...rest]) types.push(...typesForUnit(id, printCfg.level));
+  const days = finalDays();
+  return { types, origins: {}, label: `最終確認（テストまで ${days} 日）`, title: "最終確認プリント" };
+}
+const _printTargetsV11 = printTargets;
+printTargets = function(){
+  const v = document.getElementById("print-source").value || "";
+  if (v.startsWith("final:")) return finalTargets();
+  return _printTargetsV11();
+};
+
+/* ---- 同じミス警告（前に間違えた型を混ぜる） ---- */
+function applyRepeats(problems, count){
+  const toggle = document.getElementById("print-repeat");
+  if (!toggle || !toggle.checked) return problems;
+  // 最終確認プリントはテスト範囲に絞るため、範囲外の型は混ぜない
+  if ((document.getElementById("print-source").value || "").startsWith("final:")) return problems;
+  const stats = unitStats();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const mainUnits = new Set(problems.map(p => p.unitId));
+  const cands = [];
+  for (const u of UNITS){
+    const st = stats[u.id];
+    if (!st || !st.misses || !st.lastMissDate || mainUnits.has(u.id)) continue;
+    const days = Math.floor((today - st.lastMissDate) / 86400000);
+    const overcome = st.reviewedOk >= st.misses;
+    const interval = overcome ? 14 : 3;
+    if (days >= interval) cands.push(u);
+  }
+  if (!cands.length) return problems;
+  const cap = Math.max(1, Math.floor(count / 3));
+  const R = makeRng((Date.now() % 2147483647) >>> 0);
+  const repeats = [];
+  let guard = 0;
+  while (repeats.length < cap && guard++ < cap * 8){
+    const u = cands[Math.floor(R.next() * cands.length)];
+    const types = typesForUnit(u.id, printCfg.level);
+    if (!types.length) continue;
+    const p = generateProblem(types[Math.floor(R.next() * types.length)], R, false);
+    if (p){ p.repeat = true; repeats.push(p); }
+  }
+  if (!repeats.length) return problems;
+  return [...problems.slice(0, Math.max(1, count - repeats.length)), ...repeats];
+}
+
+function wire6(){
+  document.getElementById("btn-home-report").addEventListener("click", () => { renderReport(); showView("report"); });
+  document.getElementById("btn-report-back").addEventListener("click", () => showView("home"));
+  document.getElementById("btn-report-print").addEventListener("click", () => {
+    printHTML(`<div class="paper"><h3>週間レポート「ミスのクセ」</h3>${document.getElementById("report-body").innerHTML}</div>`);
+  });
+  document.getElementById("btn-home-map").addEventListener("click", () => { renderMap(); showView("map"); });
+  document.getElementById("btn-map-back").addEventListener("click", () => showView("home"));
+  const fu = document.getElementById("final-units");
+  fu.innerHTML = UNITS.filter(u => unitHasTypes(u.id)).map(u =>
+    `<label class="chip"><input type="checkbox" class="final-unit" value="${u.id}"> ${u.grade} ${esc(u.name)}</label>`).join("");
+  const srcSel = document.getElementById("print-source");
+  const syncFinal = () => {
+    const isFinal = (srcSel.value || "").startsWith("final:");
+    document.getElementById("final-fields").classList.toggle("hidden", !isFinal);
+    if (isFinal) updateFinalNote();
+  };
+  srcSel.addEventListener("change", syncFinal);
+  document.getElementById("final-days").addEventListener("change", () => { if ((srcSel.value || "").startsWith("final:")) updateFinalNote(); });
+  fu.addEventListener("change", () => { if ((srcSel.value || "").startsWith("final:")) updatePrintNote(); });
+  const _openPrintV11 = openPrint;
+  openPrint = function(examId){ _openPrintV11(examId); syncFinal(); };
+}
+wire6();
+window.__tf5 = { unitStats, unitStatusOf, buildReport, applyRepeats, finalTargets, recommendedCount };
 </script>
 </body>
 </html>
