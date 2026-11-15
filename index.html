@@ -118,6 +118,16 @@ html[data-theme="dark"] .seg button.sel-sankaku{background:#4a3a14}
 .toast.show{display:block}
 .empty{border:1.5px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;color:var(--sub);line-height:1.7}
 .hidden{display:none !important}
+.bar-row{display:grid;grid-template-columns:minmax(96px,34%) 1fr auto;gap:10px;align-items:center;margin:7px 0}
+.bar-row .bar{height:16px;border-radius:6px;background:var(--chip);border:1px solid var(--line);overflow:hidden}
+.bar-row .bar > div{height:100%;background:var(--accent)}
+.bar-row .val{font-weight:700;white-space:nowrap}
+.bar-row .lbl{font-size:.92rem}
+#explain-body h4{margin:16px 0 6px;font-size:1.02rem}
+#explain-body h4:first-child{margin-top:0}
+#explain-body p{line-height:1.75;margin:4px 0}
+#explain-body .sent.tts-now{background:#fdf0d5;border-radius:4px}
+html[data-theme="dark"] #explain-body .sent.tts-now{background:#4a3a14}
 footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);font-size:.82rem;line-height:1.6}
 </style>
 </head>
@@ -136,6 +146,7 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
     <h2>答案の記録</h2>
     <div class="btn-row">
       <button class="btn" id="btn-new-exam">＋ 答案を追加する</button>
+      <button class="btn sub" id="btn-global-analysis">分析を見る</button>
     </div>
     <div id="exam-list"></div>
     <div class="card">
@@ -196,10 +207,65 @@ footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);fo
     <div id="detail-photos"></div>
     <div id="detail-items"></div>
     <div class="btn-row">
+      <button class="btn sub" id="btn-exam-analysis">この答案の分析</button>
       <button class="btn sub" id="btn-edit-items">問題を編集する</button>
       <button class="btn sub" id="btn-edit-photos">写真を追加・編集する</button>
       <button class="btn sub" id="btn-detail-home">ホームへ戻る</button>
       <button class="btn danger" id="btn-delete-exam">この答案を消す</button>
+    </div>
+  </section>
+
+  <!-- 分析 -->
+  <section class="view" id="view-analysis">
+    <h2 id="analysis-title">分析</h2>
+    <p class="note" id="analysis-meta"></p>
+    <div id="analysis-body"></div>
+    <div class="btn-row">
+      <button class="btn sub" id="btn-analysis-back">戻る</button>
+    </div>
+  </section>
+
+  <!-- 解説 -->
+  <section class="view" id="view-explain">
+    <h2 id="explain-title">解説</h2>
+    <p class="note" id="explain-meta"></p>
+    <label class="f">解説の深さ</label>
+    <div class="seg" id="explain-depth">
+      <button data-depth="easy">やさしく</button>
+      <button data-depth="normal">ふつう</button>
+      <button data-depth="deep">くわしく</button>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div id="explain-body"></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">読み上げ</h3>
+      <div class="btn-row" style="margin:0">
+        <button class="btn" id="btn-tts-play">▶ 読み上げる</button>
+        <button class="btn sub" id="btn-tts-pause">一時停止</button>
+        <button class="btn sub" id="btn-tts-stop">停止</button>
+      </div>
+      <p class="note" id="tts-status" style="margin-bottom:0">解説を声で聞けます。数式は読みやすい言い方に変えて読みます。</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn sub" id="btn-report">この解説は正しくないかも</button>
+      <button class="btn sub" id="btn-explain-back">答案に戻る</button>
+    </div>
+    <div class="card hidden" id="report-box">
+      <h3 style="margin-top:0">報告する</h3>
+      <label class="f" for="report-type">種類</label>
+      <select id="report-type">
+        <option>答えが違うと思う</option>
+        <option>説明が分かりにくい</option>
+        <option>その他</option>
+      </select>
+      <label class="f" for="report-note">ひとこと（任意）</label>
+      <input type="text" id="report-note" placeholder="気づいたことを書いてください">
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="btn" id="btn-report-send">記録する</button>
+        <button class="btn sub" id="btn-report-cancel">やめる</button>
+      </div>
+      <p class="note" style="margin-bottom:0">報告はこの端末の中にだけ記録されます。</p>
     </div>
   </section>
 
@@ -832,7 +898,10 @@ async function renderDetail(){
       </div>
       ${it.causeNote ? `<p class="note">根拠：${esc(it.causeNote)}${it.firstBadLine ? `（最初に間違えた行：${esc(it.firstBadLine)}行目）` : ""}</p>` : ""}
       ${it.teacherComment ? `<p class="note">先生のコメント：${esc(it.teacherComment)}</p>` : ""}
+      ${(it.mark === "batsu" || it.mark === "sankaku") ? `<div class="btn-row" style="margin-bottom:0"><button class="btn" data-act="explain">解説を見る</button></div>` : ""}
     `;
+    const exBtn = div.querySelector('[data-act="explain"]');
+    if (exBtn) exBtn.addEventListener("click", () => openExplain(e.id, it.id));
     iw.appendChild(div);
   });
   if (!(e.items || []).length)
@@ -988,6 +1057,329 @@ showView("home");
 
 /* テスト用フック */
 window.__tf = { get state(){ return state; }, PhotoDB, UNITS, CAUSES, startNewExam, renderItems, examScore };
+</script>
+<script>
+"use strict";
+/* ================= フェーズ2：分析 ================= */
+function effectiveScore(it){
+  if (it.score !== "" && it.score != null) return parseFloat(it.score) || 0;
+  if (it.mark === "maru") return parseFloat(it.points) || 0;
+  return 0;
+}
+function lostPoints(it){
+  const p = parseFloat(it.points) || 0;
+  return Math.max(0, p - effectiveScore(it));
+}
+function isMiss(it){ return it.mark === "batsu" || it.mark === "sankaku"; }
+
+function aggregate(exams){
+  const byCause = new Map(), byUnit = new Map();
+  let items = 0, misses = 0, lost = 0, totalPoints = 0, totalScore = 0;
+  exams.forEach(e => (e.items || []).forEach(it => {
+    items++;
+    const lp = lostPoints(it);
+    lost += lp;
+    totalPoints += parseFloat(it.points) || 0;
+    totalScore += effectiveScore(it);
+    if (isMiss(it)) misses++;
+    if (lp > 0 || isMiss(it)){
+      const causes = (it.causes && it.causes.length) ? it.causes : [];
+      causes.forEach(c => {
+        const cur = byCause.get(c) || { count: 0, lost: 0 };
+        cur.count++;
+        cur.lost += lp / causes.length; // 複数の原因がある問題の失点は等分して集計
+        byCause.set(c, cur);
+      });
+      const key = it.unitId || "(none)";
+      const u = byUnit.get(key) || { count: 0, lost: 0, points: 0 };
+      u.count++; u.lost += lp; u.points += parseFloat(it.points) || 0;
+      byUnit.set(key, u);
+    }
+  }));
+  return { byCause, byUnit, items, misses, lost, totalPoints, totalScore };
+}
+function barRows(map, labelFn, valueFn, unit){
+  const rows = [...map.entries()].map(([k, v]) => ({ k, v })).sort((a, b) => valueFn(b.v) - valueFn(a.v));
+  const max = Math.max(1, ...rows.map(r => valueFn(r.v)));
+  if (!rows.length) return `<p class="note">データがありません。</p>`;
+  return rows.map(r => `
+    <div class="bar-row">
+      <span class="lbl">${labelFn(r.k)}</span>
+      <span class="bar"><div style="width:${Math.round(valueFn(r.v) / max * 100)}%"></div></span>
+      <span class="val">${valueFn(r.v)}${unit}</span>
+    </div>`).join("");
+}
+let analysisBackTo = "home";
+function renderAnalysis(examId){
+  const exams = examId ? state.exams.filter(e => e.id === examId) : state.exams.filter(e => e.status === "done");
+  const title = document.getElementById("analysis-title");
+  const meta = document.getElementById("analysis-meta");
+  const body = document.getElementById("analysis-body");
+  const agg = aggregate(exams);
+  title.textContent = examId ? "この答案の分析" : "全体の分析";
+  meta.textContent = examId
+    ? (exams[0] ? `${exams[0].title || "（名前なしの答案）"} ／ ${exams[0].date || ""}` : "")
+    : `確定した答案 ${exams.length} 件を通した集計です。`;
+  if (!agg.items){
+    body.innerHTML = `<div class="empty">まだ集計できる問題がありません。<br>答案を記録すると、ここに失点の内訳が出ます。</div>`;
+    return;
+  }
+  const trend = [...exams].sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.createdAt || 0) - (b.createdAt || 0))
+    .map(e => { const s = examScore(e); return `<div class="bar-row"><span class="lbl">${esc(e.date || "")} ${esc(e.title || "（名前なし）")}</span><span class="bar"><div style="width:${s.points ? Math.round(s.score / s.points * 100) : 0}%"></div></span><span class="val">${s.points ? Math.round(s.score / s.points * 100) : 0}%</span></div>`; }).join("");
+  body.innerHTML = `
+    <div class="card">
+      <div class="kv" style="font-size:1rem">
+        <span>問題 ${agg.items} 件</span><span>×・△ ${agg.misses} 件</span>
+        <span>失点 ${agg.lost} 点</span><span>得点 ${agg.totalScore} ／ ${agg.totalPoints} 点</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">原因別の失点</h3>
+      ${barRows(agg.byCause, c => esc(c), v => Math.round(v.lost * 10) / 10, " 点")}
+      <p class="note" style="margin-bottom:0">複数の原因が付いた問題の失点は、原因の数で等分して集計しています。原因タグが付いていない×・△は含まれません。</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">原因別の件数</h3>
+      ${barRows(agg.byCause, c => esc(c), v => v.count, " 件")}
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">単元別の失点</h3>
+      ${barRows(agg.byUnit, k => k === "(none)" ? "（単元なし）" : esc(UNIT_BY_ID[k] ? UNIT_BY_ID[k].grade + " " + UNIT_BY_ID[k].name : k), v => Math.round(v.lost * 10) / 10, " 点")}
+    </div>
+    ${exams.length > 1 ? `<div class="card"><h3 style="margin-top:0">答案ごとの得点率</h3>${trend}</div>` : ""}
+    <p class="note">△（部分点）の問題は、「得点」を入力してある場合はその値で、無い場合は0点として集計しています。</p>`;
+}
+
+/* ================= フェーズ2：解説 ================= */
+const CAUSE_GUIDE = {
+  "知識不足": { think:"使うべき知識（定義・公式・性質）が、まだ頭に入っていない可能性があります。まず、その単元の基本事項を1つ確認することから始めましょう。", trick:"問題文のキーワード（「傾き」「最大値」など）と、使う公式を結びつけて覚えるのが近道です。", check:"使う公式や性質を、自分の言葉で言えるか確かめてみましょう。" },
+  "公式の使い間違い": { think:"公式は知っていても、当てはめる場所や形がずれていることがあります。公式の「形」と問題の「形」を、並べて見比べましょう。", trick:"公式を先に書き、対応する数を1つずつ当てはめてから計算すると、取り違えが減ります。", check:"答えの単位や大きさが、問題の場面に合っているか見てみましょう。" },
+  "計算ミス": { think:"考え方は合っています。計算の途中で崩れているので、やるべきことは「最初のミス行」を見つけることです。", trick:"1行に1つの操作だけを書くと、どこで崩れたかが一目で分かります。", check:"逆算（かけ算とわり算の行き来）や、答えの代入で確かめましょう。" },
+  "符号ミス": { think:"マイナスの処理（移項、分配、かっこの外し方）で崩れています。符号だけを追いながら、途中式を読み直しましょう。", trick:"かっこを外すときは、「マイナス×マイナスはプラス」のように声に出すと間違いが減ります。", check:"方程式なら、解を元の式に代入すると符号の間違いはすぐ見つかります。" },
+  "単位の書き忘れ": { think:"計算は合っていても、単位が無いと減点になります。答えを書く前に「これは何の量か」を確認しましょう。", trick:"問題文で聞かれている量に下線を引き、答えの欄には先に単位だけ書いておく方法もあります。", check:"答えの量（長さ・面積・速さなど）と単位が合っているか見てみましょう。" },
+  "問題文の読み違い": { think:"数字や条件を取り違えています。問題文に戻って、自分が使った数字と条件が全部合っているか照合しましょう。", trick:"条件に1つずつチェックを入れながら読むと、読み落としが減ります。", check:"「何を聞かれているか」を自分の言葉で言い直してみましょう。" },
+  "解法が思い浮かばない": { think:"手がかりは問題文の中にあります。分かっていることを図や式に全部書き出すと、最初の一手が見えてきます。", trick:"似た型の問題の「最初の1手」だけを思い出す練習が効きます。", check:"前提になる単元の基本問題なら解けるか、確かめてみましょう。" },
+  "時間切れ": { think:"解き方ではなく、時間の配分の問題です。解ける問題から先に取る順番を決めましょう。", trick:"大問ごとに目安の時間を決めて、詰まったら印を付けて次へ進むのが基本です。", check:"過去の答案で、後半の大問の失点が多くなっていないか見てみましょう。" },
+  "作図・図の読み取りミス": { think:"図の情報を正しく拾えていません。長さ・角度・位置関係を、図に書き写すところから始めましょう。", trick:"問題文の数値を図の中に全部書き込むと、使う情報が見えてきます。自分で図を描き直すのも有効です。", check:"問題文の数字と、図から読み取った数字が一致しているか見てみましょう。" },
+  "その他": { think:"まずは自分の言葉で「どこで何をしたか」を書き出してみましょう。原因が見えてきます。", trick:"次に同じ型の問題を解くときの注意を、1つだけ決めておきましょう。", check:"解き直して、同じ答えにたどり着くか確かめましょう。" },
+};
+const UNIT_GUIDE = {
+  seifu:{ think:"符号と絶対値で考えます。同符号どうしは絶対値の和、異符号は絶対値の差に、大きい方の符号を付けます。", trick:"計算の前に「答えの符号は＋か−か」を先に決めると、途中で迷いません。" },
+  moji:{ think:"文字は「まだ決まっていない数」です。まとめられるのは、同じ文字の項どうしだけです。", trick:"項ごとに区切って見て、係数と文字をセットで扱いましょう。" },
+  ichiho:{ think:"方程式は天秤のバランスです。両辺に同じ操作をして、x だけを片側に集めます。", trick:"移項したら符号が変わります。最後は解を代入して検算できます。" },
+  hirei:{ think:"比例は y=ax、反比例は xy=a（一定）です。表では「xが2倍のとき y はどうなるか」を確かめます。", trick:"1組の (x, y) から a を決めるのが近道です。" },
+  heimen:{ think:"角度は「まっすぐで180°、1回転で360°」と、平行線の錯角・同位角を積み上げて求めます。", trick:"分かった角度を図に全部書き込むと、次に使う角が見えてきます。" },
+  kukan:{ think:"体積は「底面積×高さ」、すい（錐）はその3分の1です。展開図と見取り図を行き来して考えます。", trick:"底面がどれかを最初に決めると、公式を取り違えません。" },
+  shiryo1:{ think:"代表値は平均値・中央値・最頻値です。データの散らばりは、範囲やヒストグラムで見ます。", trick:"外れ値があると平均値は引っ張られます。中央値と見比べましょう。" },
+  shiki2:{ think:"単項式のかけ算・わり算は「係数どうし、文字どうし」で処理します。指数は、かけ算で足し、わり算で引きます。", trick:"符号、係数、文字の順に処理すると崩れにくくなります。" },
+  renritsu:{ think:"連立方程式は、2つの式から文字を1つ消すのが基本です（代入法・加減法）。消しやすい文字を選びましょう。", trick:"解は両方の式に代入して検算できます。片方だけでは不十分です。" },
+  ichiji:{ think:"一次関数は y=ax+b です。a は変化の割合（xが1増えたときの y の増え方）、b は切片です。", trick:"グラフの2点が分かれば式が決まります。まず増え方（a）を見ましょう。" },
+  shoumei:{ think:"証明は、合同や相似の条件に当てはめる作業です。等しい辺と角を図に印すことから始めます。", trick:"結論から逆にたどると、何を示せばよいかが見えてきます。" },
+  kakuritsu2:{ think:"確率は「すべての場合の数」と「その場合の数」を数えることが土台です。樹形図や表で、漏れなく数えましょう。", trick:"同時に起きることは表、順番があることは樹形図が向いています。" },
+  takoshiki:{ think:"展開は分配法則、因数分解はその逆の作業です。乗法公式は「形のパターン」として見分けます。", trick:"因数分解は、共通因数、公式、たすきがけの順に試しましょう。" },
+  heihokon:{ think:"√a は「2乗して a になる正の数」です。根号は、できるだけ簡単な形に直してから計算します。", trick:"中身を素因数分解すると、外に出せる数が見えてきます。" },
+  nijiho:{ think:"二次方程式は、「(xの式)²=数」か「積=0」の形に持ち込むのが基本です。因数分解、平方完成、解の公式の順に試します。", trick:"解は元の式に代入すれば必ず検算できます。" },
+  nijikan:{ think:"y=ax² は、頂点が原点にある放物線です。a の符号で向き、a の大きさで開き方が決まります。", trick:"値の変化は、頂点を含むかどうかで場合分けして考えます。" },
+  sanpei:{ think:"三平方の定理は、直角三角形で a²+b²=c²（c は斜辺）です。辺の比 3:4:5 や 1:1:√2、1:2:√3 も武器になります。", trick:"まず直角の場所と斜辺を確認しましょう。斜辺の取り違えが一番多いミスです。" },
+  en:{ think:"円周角は中心角の半分です。同じ弧に対する円周角は、どこにあっても等しくなります。", trick:"直径に対する円周角は90°です。補助線は中心へ引くと道が開けます。" },
+  hyohon:{ think:"標本調査は、標本の割合から全体（母集団）を推し量る方法です。標本は無作為に取るのが前提です。", trick:"「標本の割合 ≒ 全体の割合」という比例の関係で考えます。" },
+};
+
+let explainCtx = { examId: null, itemId: null, depth: "normal", sections: [] };
+function buildExplanation(it, depth){
+  const unit = UNIT_BY_ID[it.unitId];
+  const ug = unit ? UNIT_GUIDE[it.unitId] : null;
+  const causes = (it.causes && it.causes.length) ? it.causes : ["その他"];
+  const cg = CAUSE_GUIDE[causes[0]] || CAUSE_GUIDE["その他"];
+  const sections = [];
+  // ① どこが違うか
+  const s1 = [];
+  if (it.myAnswer && it.correctAnswer)
+    s1.push(`あなたの答えは「${it.myAnswer}」、正しい答えは「${it.correctAnswer}」です。`);
+  else if (it.myAnswer)
+    s1.push(`あなたの答えは「${it.myAnswer}」でした。正しい答えを入力すると、違いがもっとはっきりします。`);
+  else if (it.correctAnswer)
+    s1.push(`正しい答えは「${it.correctAnswer}」です。自分の答えを入力しておくと、違いを比べられます。`);
+  if (it.causeNote) s1.push(`記録した根拠：${it.causeNote}。`);
+  if (it.firstBadLine){
+    s1.push(`途中式では、${it.firstBadLine}行目で初めて崩れています。まずその行だけを見直しましょう。`);
+    const lines = (it.steps || "").split("\n").filter(x => x.trim());
+    const line = lines[parseInt(it.firstBadLine, 10) - 1];
+    if (line) s1.push(`その行は「${line.trim()}」です。前の行と比べて、何が変わったかを見てください。`);
+  }
+  if (causes[0] !== "その他") s1.push(`原因として記録されているのは「${causes.join("」「")}」です。`);
+  if (!s1.length) s1.push("自分の答えや正しい答えを入力すると、ここに違いが具体的に出ます。");
+  sections.push({ title: "① 自分の解答のどこが違うか", sentences: s1 });
+  // ② 考え方
+  const s2 = [];
+  if (ug) s2.push(ug.think);
+  s2.push(cg.think);
+  if (depth === "easy" && unit && unit.pre && unit.pre.length){
+    const pres = unit.pre.map(id => UNIT_BY_ID[id]).filter(Boolean);
+    if (pres.length) s2.push(`土台になるのは ${pres.map(p => `「${p.grade} ${p.name}」`).join("と")} です。つまずいたら、まずそちらの基本を確認すると戻りやすくなります。`);
+  }
+  sections.push({ title: "② 正しい考え方", sentences: s2 });
+  // ③ 解き方
+  const s3 = [];
+  if (it.correctAnswer) s3.push(`ゴールは「${it.correctAnswer}」です。自分の途中式と1行ずつ見比べて、違う行を探しましょう。`);
+  else s3.push("正しい答えがまだ入力されていません。教科書や模範解答で正答を確認して入力すると、解き方の説明が具体的になります。");
+  if (it.steps) s3.push("途中式が記録されているので、最初のミス行から先だけを直せば、最後までたどり着けるはずです。");
+  if (depth === "deep") s3.push(`検算のしかた：${cg.check}`);
+  else if (depth === "easy") s3.push("あせらず、1行ずつ確かめながら進めましょう。");
+  sections.push({ title: "③ 正しい解き方", sentences: s3 });
+  // ④ コツ
+  const s4 = [];
+  if (ug) s4.push(ug.trick);
+  s4.push(cg.trick);
+  if (it.teacherComment) s4.push(`先生のコメントにもありました：「${it.teacherComment}」。これも見分ける手がかりです。`);
+  sections.push({ title: "④ 同じ型の問題を見分けるコツ", sentences: s4 });
+  return sections;
+}
+function openExplain(examId, itemId){
+  const e = state.exams.find(x => x.id === examId);
+  if (!e) return;
+  const it = (e.items || []).find(x => x.id === itemId);
+  if (!it) return;
+  explainCtx = { examId, itemId, depth: "normal", sections: [] };
+  currentExamId = examId;
+  renderExplain();
+  showView("explain");
+}
+function renderExplain(){
+  const e = state.exams.find(x => x.id === explainCtx.examId);
+  const it = e ? (e.items || []).find(x => x.id === explainCtx.itemId) : null;
+  if (!it) return;
+  const unit = UNIT_BY_ID[it.unitId];
+  document.getElementById("explain-title").textContent = `問 ${it.no || ""} の解説`;
+  document.getElementById("explain-meta").textContent =
+    `${e.title || "（名前なしの答案）"} ／ ${unit ? unit.grade + " " + unit.name : "単元なし"} ／ ${MARKS[it.mark] || ""}`;
+  document.querySelectorAll("#explain-depth button").forEach(b =>
+    b.className = b.dataset.depth === explainCtx.depth
+      ? (explainCtx.depth === "easy" ? "sel-sankaku" : explainCtx.depth === "deep" ? "sel-batsu" : "sel-maru") : "");
+  explainCtx.sections = buildExplanation(it, explainCtx.depth);
+  const body = document.getElementById("explain-body");
+  body.innerHTML = explainCtx.sections.map(sec => `
+    <h4>${esc(sec.title)}</h4>
+    ${sec.sentences.map(s => `<p><span class="sent">${esc(s)}</span></p>`).join("")}
+  `).join("");
+  stopSpeech();
+}
+
+/* ================= フェーズ2：読み上げ（数式の読み替え） ================= */
+const LETTER_READING = { a:"エー", b:"ビー", c:"シー", d:"ディー", e:"イー", f:"エフ", g:"ジー", h:"エイチ", i:"アイ", j:"ジェー", k:"ケー", l:"エル", m:"エム", n:"エヌ", o:"オー", p:"ピー", q:"キュー", r:"アール", s:"エス", t:"ティー", u:"ユー", v:"ブイ", w:"ダブリュー", x:"エックス", y:"ワイ", z:"ゼット" };
+function readAtom(tok){
+  if (/^[a-zA-Z]$/.test(tok)) return LETTER_READING[tok.toLowerCase()];
+  return tok;
+}
+function readExpr(s){
+  return s.replace(/\+/g, " たす ").replace(/(?<![0-9)])-/g, " ひく ").replace(/-/g, " マイナス ")
+    .replace(/\*/g, " かける ").replace(/[a-zA-Z]/g, ch => " " + LETTER_READING[ch.toLowerCase()] + " ")
+    .replace(/\s+/g, " ").trim();
+}
+function toSpeech(text){
+  let s = String(text ?? "");
+  // 座標 (2, 3)
+  s = s.replace(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g, "座標 $1、$2");
+  // 絶対値 |x|
+  s = s.replace(/\|([^|]+)\|/g, (m, inner) => "絶対値 " + readAtom(inner.trim()));
+  // 根号 √( ... )
+  s = s.replace(/√\(([^()]+)\)/g, (m, inner) => "ルート かっこ " + readExpr(inner) + " かっこ閉じ");
+  // 根号 √3 / √x
+  s = s.replace(/√\s*([0-9]+|[a-zA-Z])/g, (m, t) => "ルート " + readAtom(t));
+  // 分数 (a+b)/(c+d) ：分母から読む
+  s = s.replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g, (m, num, den) => "かっこ " + readExpr(den) + " かっこ閉じ 分の かっこ " + readExpr(num) + " かっこ閉じ");
+  // 分数 a/b（単純なもの）：分母から読む
+  s = s.replace(/([0-9]+|[a-zA-Z])\s*\/\s*([0-9]+|[a-zA-Z])/g, (m, num, den) => readAtom(den) + " 分の " + readAtom(num));
+  // 累乗 x^2, x^n, 2^10
+  s = s.replace(/([a-zA-Z]|[0-9]+)\^([0-9]+|[a-zA-Z])/g, (m, base, exp) => readAtom(base) + " の " + readAtom(exp) + " 乗");
+  // 添字 a_n, a_1
+  s = s.replace(/([a-zA-Z])_([a-zA-Z0-9])/g, (m, base, sub) => LETTER_READING[base.toLowerCase()] + " " + readAtom(sub));
+  // 記号
+  s = s.replace(/π/g, " パイ ").replace(/°/g, " 度").replace(/%/g, " パーセント")
+       .replace(/±/g, " プラスマイナス ").replace(/×/g, " かける ").replace(/÷/g, " わる ")
+       .replace(/≠/g, " 等しくない ").replace(/≦|≤/g, " 以下 ").replace(/≧|≥/g, " 以上 ")
+       .replace(/</g, " より小さい ").replace(/>/g, " より大きい ")
+       .replace(/∠/g, " 角 ").replace(/△/g, " 三角形 ")
+       .replace(/⊥/g, " 垂直 ").replace(/∥|\/\//g, " 平行 ");
+  // 比 a:b
+  s = s.replace(/([0-9]+|[a-zA-Z])\s*[:：]\s*([0-9]+|[a-zA-Z])/g, (m, a, b) => readAtom(a) + " 対 " + readAtom(b));
+  // 残った英字は読みに変える
+  s = s.replace(/[a-zA-Z]/g, ch => " " + LETTER_READING[ch.toLowerCase()] + " ");
+  // 等号と四則（残り）
+  s = s.replace(/=/g, " イコール ").replace(/\+/g, " たす ");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+let speechQueue = [], speechIdx = -1, speaking = false;
+function stopSpeech(){
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  speechQueue = []; speechIdx = -1; speaking = false;
+  document.querySelectorAll("#explain-body .sent.tts-now").forEach(el => el.classList.remove("tts-now"));
+  const st = document.getElementById("tts-status");
+  if (st) st.textContent = "解説を声で聞けます。数式は読みやすい言い方に変えて読みます。";
+}
+function playSpeech(){
+  if (!("speechSynthesis" in window)){ toast("この端末では読み上げが使えません"); return; }
+  if (speaking && speechSynthesis.paused){ speechSynthesis.resume(); return; }
+  stopSpeech();
+  const spans = [...document.querySelectorAll("#explain-body .sent")];
+  if (!spans.length) return;
+  speechQueue = spans;
+  speechIdx = 0; speaking = true;
+  speakCurrent();
+}
+function speakCurrent(){
+  if (speechIdx < 0 || speechIdx >= speechQueue.length){ stopSpeech(); return; }
+  document.querySelectorAll("#explain-body .sent.tts-now").forEach(el => el.classList.remove("tts-now"));
+  const span = speechQueue[speechIdx];
+  span.classList.add("tts-now");
+  span.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  const u = new SpeechSynthesisUtterance(toSpeech(span.textContent));
+  u.lang = "ja-JP";
+  u.rate = state.settings.speechRate || 1;
+  u.onend = () => { if (speaking){ speechIdx++; speakCurrent(); } };
+  u.onerror = () => { if (speaking){ speechIdx++; speakCurrent(); } };
+  document.getElementById("tts-status").textContent = `読み上げ中（${speechIdx + 1} ／ ${speechQueue.length} 文）`;
+  speechSynthesis.speak(u);
+}
+
+/* ================= フェーズ2：配線 ================= */
+function wire2(){
+  document.getElementById("btn-global-analysis").addEventListener("click", () => {
+    analysisBackTo = "home"; renderAnalysis(null); showView("analysis");
+  });
+  document.getElementById("btn-exam-analysis").addEventListener("click", () => {
+    analysisBackTo = "detail"; renderAnalysis(currentExamId); showView("analysis");
+  });
+  document.getElementById("btn-analysis-back").addEventListener("click", () => {
+    if (analysisBackTo === "detail" && currentExam()){ renderDetail(); showView("detail"); }
+    else showView("home");
+  });
+  document.querySelectorAll("#explain-depth button").forEach(b => b.addEventListener("click", () => {
+    explainCtx.depth = b.dataset.depth; renderExplain();
+  }));
+  document.getElementById("btn-tts-play").addEventListener("click", playSpeech);
+  document.getElementById("btn-tts-pause").addEventListener("click", () => {
+    if ("speechSynthesis" in window){ if (speechSynthesis.speaking && !speechSynthesis.paused) speechSynthesis.pause(); else if (speechSynthesis.paused) speechSynthesis.resume(); }
+  });
+  document.getElementById("btn-tts-stop").addEventListener("click", stopSpeech);
+  document.getElementById("btn-explain-back").addEventListener("click", () => { stopSpeech(); renderDetail(); showView("detail"); });
+  document.getElementById("btn-report").addEventListener("click", () => document.getElementById("report-box").classList.remove("hidden"));
+  document.getElementById("btn-report-cancel").addEventListener("click", () => document.getElementById("report-box").classList.add("hidden"));
+  document.getElementById("btn-report-send").addEventListener("click", () => {
+    state.reportLog.push({
+      id: uid(), examId: explainCtx.examId, itemId: explainCtx.itemId,
+      type: document.getElementById("report-type").value,
+      note: document.getElementById("report-note").value.trim(),
+      at: Date.now(),
+    });
+    saveState();
+    document.getElementById("report-box").classList.add("hidden");
+    toast("報告を記録しました。ありがとうございます");
+  });
+}
+wire2();
+window.__tf2 = { aggregate, buildExplanation, toSpeech, lostPoints, effectiveScore };
 </script>
 </body>
 </html>
