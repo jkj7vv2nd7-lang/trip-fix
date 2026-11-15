@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TripFix ― ミスを直して、同じミスを繰り返さない</title>
+<meta name="description" content="採点済みの答案を写真で記録し、ミスの原因を分析して、補強プリントと解き直しで同じミスを繰り返さないための学習アプリ。データは端末内のみ。">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta property="og:title" content="TripFix">
+<meta property="og:description" content="採点済み答案を写真で記録し、ミスの原因から直していく学習アプリ。データは端末の中だけに保存されます。">
+<meta property="og:image" content="https://jkj7vv2nd7-lang.github.io/trip-fix/icon-180.png">
+<style>
+:root{
+  --bg:#f6f3ea; --card:#fffdf7; --ink:#2d2a24; --sub:#7a7261;
+  --line:#e3dcc9; --accent:#0f766e; --accent-ink:#ffffff;
+  --good:#0d9488; --bad:#d63031; --warn:#e8a13a; --chip:#efe9da;
+  --mark-maru:#d63031; --mark-batsu:#2b5ea7; --mark-sankaku:#e8a13a;
+  --fs:16px;
+}
+html[data-theme="dark"]{
+  --bg:#1d1b16; --card:#2a271f; --ink:#f0ead9; --sub:#b3a98f;
+  --line:#4a4436; --accent:#2dd4bf; --accent-ink:#12312c;
+  --chip:#3a362a; --mark-maru:#ff7a72; --mark-batsu:#8db8f2; --mark-sankaku:#ffc46b;
+}
+*{box-sizing:border-box}
+html{font-size:var(--fs)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-text-size-adjust:100%}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+header.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
+  padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+header.top .logo{display:flex;align-items:center;gap:9px;background:none;border:none;color:var(--ink);
+  font-weight:700;font-size:1.15rem;padding:4px 2px}
+header.top .logo img{width:32px;height:32px;border-radius:8px}
+header.top .spacer{flex:1}
+.icon-btn{background:var(--chip);border:1px solid var(--line);border-radius:10px;
+  padding:8px 12px;color:var(--ink)}
+main{max-width:860px;margin:0 auto;padding:14px 14px 90px}
+.view{display:none}
+.view.active{display:block}
+h2{font-size:1.25rem;margin:6px 0 10px}
+h3{font-size:1.05rem;margin:16px 0 8px}
+p.note{color:var(--sub);font-size:.9rem;line-height:1.6}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--accent);color:var(--accent-ink);border:none;border-radius:12px;
+  padding:12px 18px;font-weight:700;min-height:48px}
+.btn.sub{background:var(--chip);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:#b3261e;color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:14px;margin:0 0 12px}
+.exam-card{display:flex;gap:12px;align-items:center;text-align:left;width:100%;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px;color:var(--ink)}
+.exam-card .meta{flex:1;min-width:0}
+.exam-card .title{font-weight:700;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exam-card .detail{color:var(--sub);font-size:.88rem;margin-top:3px}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;
+  background:var(--chip);color:var(--ink);border:1px solid var(--line)}
+.badge.draft{background:#fdf0d5;color:#8a5a00;border-color:#ecd9a0}
+html[data-theme="dark"] .badge.draft{background:#4a3a14;color:#ffd97a}
+.meter{height:10px;border-radius:6px;background:var(--chip);overflow:hidden;border:1px solid var(--line)}
+.meter > div{height:100%;background:var(--accent)}
+label.f{display:block;font-size:.9rem;font-weight:700;margin:12px 0 5px}
+input[type="text"],input[type="date"],input[type="number"],select,textarea{
+  width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+textarea{min-height:64px;line-height:1.55;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media (max-width:560px){.row3{grid-template-columns:1fr 1fr}}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;padding:11px 4px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font-weight:700;font-size:1.05rem;min-height:48px}
+.seg button.sel-maru{background:#fdeceb;border-color:var(--mark-maru);color:var(--mark-maru)}
+.seg button.sel-batsu{background:#e9f0fb;border-color:var(--mark-batsu);color:var(--mark-batsu)}
+.seg button.sel-sankaku{background:#fdf3df;border-color:var(--mark-sankaku);color:#9a6a10}
+html[data-theme="dark"] .seg button.sel-maru{background:#4a2320}
+html[data-theme="dark"] .seg button.sel-batsu{background:#22344f}
+html[data-theme="dark"] .seg button.sel-sankaku{background:#4a3a14}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);
+  border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:.9rem;cursor:pointer}
+.chip input{accent-color:var(--accent);width:18px;height:18px}
+.chip:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.item-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 14px;background:var(--card)}
+.item-card .head{display:flex;align-items:center;gap:8px}
+.item-card .head .no{font-weight:700;font-size:1.05rem}
+.mark-symbol{font-size:1.5rem;font-weight:700;line-height:1}
+.mark-symbol.maru{color:var(--mark-maru)}
+.mark-symbol.batsu{color:var(--mark-batsu)}
+.mark-symbol.sankaku{color:var(--mark-sankaku)}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.thumb{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.thumb img{width:100%;height:130px;object-fit:cover;display:block}
+.thumb .ops{display:flex;gap:6px;padding:8px}
+.thumb .ops button{flex:1;padding:8px 4px;border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--ink)}
+.detail-photo{width:100%;border-radius:12px;border:1px solid var(--line);margin:0 0 12px;display:block}
+.kv{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.kv .tag{background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.82rem}
+.stepper{display:flex;gap:6px;margin:4px 0 14px}
+.stepper span{flex:1;text-align:center;padding:8px 2px;border-radius:999px;background:var(--chip);
+  color:var(--sub);font-size:.85rem;font-weight:700;border:1px solid var(--line)}
+.stepper span.now{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.modal{position:fixed;inset:0;background:rgba(20,18,12,.72);z-index:50;display:none;
+  align-items:flex-start;justify-content:center;overflow:auto;padding:14px}
+.modal.open{display:flex}
+.modal .box{background:var(--card);border-radius:16px;padding:14px;width:min(680px,100%);margin:auto}
+#editor-canvas{width:100%;border:1px solid var(--line);border-radius:10px;touch-action:none;background:#888}
+.ed-modes{display:flex;gap:8px;margin:10px 0}
+.ed-modes button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--chip);color:var(--ink);font-weight:700}
+.ed-modes button.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:80;
+  background:#2d2a24;color:#fdf8e8;padding:11px 18px;border-radius:999px;font-size:.92rem;
+  box-shadow:0 4px 18px rgba(0,0,0,.3);display:none;max-width:92vw;text-align:center}
+.toast.show{display:block}
+.empty{border:1.5px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;color:var(--sub);line-height:1.7}
+.hidden{display:none !important}
+footer.app{max-width:860px;margin:0 auto;padding:0 14px 26px;color:var(--sub);font-size:.82rem;line-height:1.6}
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="logo" id="btn-home" aria-label="ホームへ">
+    <img src="icon-180.png" alt="">TripFix
+  </button>
+  <span class="spacer"></span>
+  <button class="icon-btn" id="btn-settings">設定</button>
+</header>
+
+<main>
+  <!-- ホーム -->
+  <section class="view" id="view-home">
+    <h2>答案の記録</h2>
+    <div class="btn-row">
+      <button class="btn" id="btn-new-exam">＋ 答案を追加する</button>
+    </div>
+    <div id="exam-list"></div>
+    <div class="card">
+      <h3 style="margin-top:0">保存の状況</h3>
+      <div class="meter"><div id="home-meter-bar" style="width:0%"></div></div>
+      <p class="note" id="home-meter-text" style="margin-bottom:0">読み込み中…</p>
+    </div>
+  </section>
+
+  <!-- 撮影・追加 -->
+  <section class="view" id="view-add">
+    <div class="stepper"><span class="now">1. 写真</span><span>2. 問題の入力</span><span>3. 確定</span></div>
+    <h2>答案の写真</h2>
+    <label class="f" for="exam-title-input">テストの名前（任意）</label>
+    <input type="text" id="exam-title-input" placeholder="例：中間テスト 数学">
+    <label class="f" for="exam-date-input">日付</label>
+    <input type="date" id="exam-date-input">
+    <h3>写真（複数枚を1つの答案として扱えます）</h3>
+    <p class="note">名前や学校名が写っているときは、写真を開いて「マスク」を塗ってから保存してください。写真はこの端末の中にだけ保存されます。</p>
+    <div class="btn-row">
+      <label class="btn" for="photo-file" style="margin:0">写真を撮る／選ぶ</label>
+      <input type="file" id="photo-file" accept="image/*" class="hidden">
+    </div>
+    <div class="thumbs" id="photo-thumbs"></div>
+    <div class="btn-row">
+      <button class="btn" id="btn-to-confirm">問題の入力へ進む</button>
+      <button class="btn sub" id="btn-add-back">ホームへ戻る（下書き保存）</button>
+      <button class="btn danger" id="btn-discard-exam">この答案を消す</button>
+    </div>
+  </section>
+
+  <!-- 確認・修正 -->
+  <section class="view" id="view-confirm">
+    <div class="stepper"><span>1. 写真</span><span class="now">2. 問題の入力</span><span>3. 確定</span></div>
+    <h2>問題ごとの記録</h2>
+    <p class="note">問題ごとに、○×・配点・単元・間違えた原因を付けます。×と△の問題には原因タグを付けると、あとの分析と補強プリントに使えます。入力は自動で下書き保存されます。</p>
+    <div id="items-wrap"></div>
+    <div class="btn-row">
+      <button class="btn sub" id="btn-add-item">＋ 問題を追加</button>
+    </div>
+    <div class="card">
+      <div class="kv" style="font-size:1rem">
+        <span>配点の合計：<strong id="sum-points">0</strong> 点</span>
+        <span>得点：<strong id="sum-score">0</strong> 点</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btn-finalize">確定して保存する</button>
+      <button class="btn sub" id="btn-to-photos">写真に戻る</button>
+      <button class="btn sub" id="btn-confirm-home">ホームへ戻る（下書き保存）</button>
+    </div>
+  </section>
+
+  <!-- 答案の詳細（再表示） -->
+  <section class="view" id="view-detail">
+    <h2 id="detail-title">答案</h2>
+    <p class="note" id="detail-meta"></p>
+    <div id="detail-photos"></div>
+    <div id="detail-items"></div>
+    <div class="btn-row">
+      <button class="btn sub" id="btn-edit-items">問題を編集する</button>
+      <button class="btn sub" id="btn-edit-photos">写真を追加・編集する</button>
+      <button class="btn sub" id="btn-detail-home">ホームへ戻る</button>
+      <button class="btn danger" id="btn-delete-exam">この答案を消す</button>
+    </div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="view" id="view-settings">
+    <h2>設定</h2>
+    <div class="card">
+      <h3 style="margin-top:0">プロフィール</h3>
+      <label class="f" for="set-name">ニックネーム（任意）</label>
+      <input type="text" id="set-name" placeholder="例：たろう">
+      <label class="f" for="set-grade">学年</label>
+      <select id="set-grade">
+        <option>中1</option><option>中2</option><option>中3</option>
+        <option>高1</option><option>高2</option><option>高3</option><option>その他</option>
+      </select>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">表示と読み上げ</h3>
+      <label class="f" for="set-font">文字の大きさ</label>
+      <select id="set-font">
+        <option value="small">小さめ</option>
+        <option value="medium">ふつう</option>
+        <option value="large">大きめ</option>
+      </select>
+      <label class="f" for="set-rate">読み上げの速さ（解説の読み上げで使います）</label>
+      <select id="set-rate">
+        <option value="0.8">ゆっくり</option>
+        <option value="1">ふつう</option>
+        <option value="1.2">少し速く</option>
+        <option value="1.4">速く</option>
+      </select>
+      <label class="chip" style="margin-top:12px"><input type="checkbox" id="set-dark"> ダークモード</label>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">データの管理</h3>
+      <div class="meter"><div id="meter-bar" style="width:0%"></div></div>
+      <p class="note" id="meter-detail">読み込み中…</p>
+      <p class="note">データはこの端末の中にだけ保存されます。写真も外に送られることはありません。端末を変えるときや、万一に備えて、ときどき書き出し（バックアップ）をしておくのがおすすめです。</p>
+      <div class="btn-row">
+        <button class="btn sub" id="btn-export">書き出す（バックアップ）</button>
+        <label class="btn sub" for="import-file" style="margin:0">読み込む</label>
+        <input type="file" id="import-file" accept="application/json" class="hidden">
+      </div>
+      <div class="btn-row">
+        <button class="btn danger" id="btn-wipe">すべてのデータを消す</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">このアプリについて</h3>
+      <p class="note" style="margin-bottom:0">
+        TripFix は、採点済みの答案を写真で記録し、間違えた原因を付けて、解説と補強プリント、解き直しで「同じミスを繰り返さない」ことを目指す学習アプリです。<br>
+        ・記録した写真とデータは、あなたの端末の中にだけ保存されます。サーバーには送られません。<br>
+        ・補強プリントの問題は、このアプリが新しく作るオリジナル問題だけです。撮影した問題そのものは載せません。<br>
+        ・解説には間違いが含まれる可能性があります。おかしいと思ったら、各画面の「この解説は正しくないかも」から知らせてください（記録は端末内に残ります）。
+      </p>
+    </div>
+    <div class="btn-row">
+      <button class="btn sub" id="btn-settings-home">ホームへ戻る</button>
+    </div>
+  </section>
+</main>
+
+<footer class="app">TripFix ― データは端末内のみに保存されます。</footer>
+
+<!-- 写真エディタ -->
+<div class="modal" id="editor-modal" role="dialog" aria-label="写真の編集">
+  <div class="box">
+    <h3 style="margin-top:0">写真の編集</h3>
+    <canvas id="editor-canvas" width="640" height="480"></canvas>
+    <div class="ed-modes">
+      <button id="ed-mode-mask" class="sel">マスク（黒く塗る）</button>
+      <button id="ed-mode-crop">切り抜き</button>
+      <button id="ed-rotate">回転</button>
+      <button id="ed-undo">元に戻す</button>
+    </div>
+    <p class="note" style="margin:0 0 6px">指やマウスでドラッグして範囲を選ぶと、「マスク」では黒く塗り、「切り抜き」ではその範囲だけを残します。</p>
+    <div class="btn-row" style="margin-bottom:0">
+      <button class="btn" id="ed-apply">この写真で確定する</button>
+      <button class="btn sub" id="ed-cancel">やめる</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ================= 定数：単元マスタと原因タグ ================= */
+const UNITS = [
+  { id:"seifu",   grade:"中1", name:"正負の数",       pre:[] },
+  { id:"moji",    grade:"中1", name:"文字と式",       pre:["seifu"] },
+  { id:"ichiho",  grade:"中1", name:"一次方程式",     pre:["moji"] },
+  { id:"hirei",   grade:"中1", name:"比例・反比例",   pre:["moji"] },
+  { id:"heimen",  grade:"中1", name:"平面図形",       pre:[] },
+  { id:"kukan",   grade:"中1", name:"空間図形",       pre:["heimen"] },
+  { id:"shiryo1", grade:"中1", name:"資料の分析",     pre:[] },
+  { id:"shiki2",  grade:"中2", name:"式の計算",       pre:["moji"] },
+  { id:"renritsu",grade:"中2", name:"連立方程式",     pre:["ichiho","shiki2"] },
+  { id:"ichiji",  grade:"中2", name:"一次関数",       pre:["hirei","renritsu"] },
+  { id:"shoumei", grade:"中2", name:"図形の性質と証明", pre:["heimen"] },
+  { id:"kakuritsu2", grade:"中2", name:"確率",        pre:[] },
+  { id:"takoshiki", grade:"中3", name:"多項式（展開・因数分解）", pre:["shiki2"] },
+  { id:"heihokon",  grade:"中3", name:"平方根",       pre:["seifu"] },
+  { id:"nijiho",    grade:"中3", name:"二次方程式",   pre:["takoshiki","heihokon"] },
+  { id:"nijikan",   grade:"中3", name:"二次関数",     pre:["ichiji"] },
+  { id:"sanpei",    grade:"中3", name:"三平方の定理", pre:["heihokon","shoumei"] },
+  { id:"en",        grade:"中3", name:"円の性質",     pre:["shoumei"] },
+  { id:"hyohon",    grade:"中3", name:"標本調査",     pre:["shiryo1"] },
+];
+const UNIT_BY_ID = Object.fromEntries(UNITS.map(u => [u.id, u]));
+const CAUSES = [
+  "知識不足","公式の使い間違い","計算ミス","符号ミス","単位の書き忘れ",
+  "問題文の読み違い","解法が思い浮かばない","時間切れ","作図・図の読み取りミス","その他",
+];
+const MARKS = { maru:"○", batsu:"×", sankaku:"△" };
+
+/* ================= 状態の保存（localStorage、1世代バックアップつき） ================= */
+const STORE_KEY = "tripfix-v1";
+const BACKUP_KEY = "tripfix-v1-backup";
+const CAPACITY_WARN_BYTES = 150 * 1024 * 1024;
+
+function defaultState(){
+  return {
+    version: 1,
+    profile: { name:"", grade:"中2" },
+    settings: { dark:false, fontSize:"medium", speechRate:1 },
+    exams: [], worksheets: [], correctionLog: [], reportLog: [],
+  };
+}
+let state = defaultState();
+
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) { state = Object.assign(defaultState(), JSON.parse(raw)); return; }
+  } catch(e) { /* 壊れていたらバックアップを試す */ }
+  try {
+    const bak = localStorage.getItem(BACKUP_KEY);
+    if (bak) { state = Object.assign(defaultState(), JSON.parse(bak)); return; }
+  } catch(e) { /* バックアップも壊れていたら初期状態 */ }
+  state = defaultState();
+}
+function saveState(){
+  try {
+    const prev = localStorage.getItem(STORE_KEY);
+    if (prev) localStorage.setItem(BACKUP_KEY, prev);
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  } catch(e) {
+    toast("保存できませんでした（端末の空き容量を確認してください）");
+  }
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ================= 写真の保存（IndexedDB） ================= */
+const PhotoDB = {
+  db: null,
+  open(){
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open("tripfix-photos", 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore("photos", { keyPath:"id" }); };
+      req.onsuccess = () => { this.db = req.result; resolve(this.db); };
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async tx(mode, fn){
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const t = db.transaction("photos", mode);
+      const store = t.objectStore("photos");
+      let out;
+      t.oncomplete = () => resolve(out);
+      t.onerror = () => reject(t.error);
+      out = fn(store);
+    });
+  },
+  put(rec){ return this.tx("readwrite", s => { s.put(rec); }); },
+  async get(id){
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction("photos").objectStore("photos").get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  },
+  del(id){ return this.tx("readwrite", s => { s.delete(id); }); },
+  clear(){ return this.tx("readwrite", s => { s.clear(); }); },
+  async all(){
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction("photos").objectStore("photos").getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async stats(){
+    const rows = await this.all();
+    return { count: rows.length, bytes: rows.reduce((a, r) => a + (r.bytes || 0), 0) };
+  },
+  async cleanupOrphans(){
+    const used = new Set();
+    state.exams.forEach(e => (e.photoIds || []).forEach(id => used.add(id)));
+    const rows = await this.all();
+    for (const r of rows) if (!used.has(r.id)) await this.del(r.id);
+  },
+};
+
+/* ================= 画像処理 ================= */
+const MAX_EDGE = 1600;
+function loadImageFromFile(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { resolve({ img, url }); };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+function drawScaledToCanvas(img, maxEdge){
+  const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  c.getContext("2d").drawImage(img, 0, 0, w, h);
+  return c;
+}
+function canvasToBlob(c, quality){
+  return new Promise(resolve => c.toBlob(b => resolve(b), "image/jpeg", quality ?? 0.82));
+}
+function fmtBytes(n){
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1024 / 1024).toFixed(1) + " MB";
+}
+
+/* ================= 画面遷移とトースト ================= */
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+}
+function showView(name){
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-" + name).classList.add("active");
+  window.scrollTo(0, 0);
+  if (name === "home") renderHome();
+  if (name === "settings") renderSettings();
+}
+
+/* ================= ホーム ================= */
+function examScore(e){
+  let points = 0, score = 0;
+  (e.items || []).forEach(it => {
+    const p = parseFloat(it.points) || 0;
+    points += p;
+    if (it.score !== "" && it.score != null) score += parseFloat(it.score) || 0;
+    else if (it.mark === "maru") score += p;
+  });
+  return { points, score };
+}
+async function renderHome(){
+  const list = document.getElementById("exam-list");
+  const exams = [...state.exams].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  if (!exams.length){
+    list.innerHTML = `<div class="empty">まだ答案がありません。<br>「＋ 答案を追加する」から、採点済みの答案を写真で残しましょう。</div>`;
+  } else {
+    list.innerHTML = "";
+    exams.forEach(e => {
+      const { points, score } = examScore(e);
+      const btn = document.createElement("button");
+      btn.className = "exam-card";
+      btn.innerHTML = `
+        <div class="meta">
+          <div class="title">${esc(e.title || "（名前なしの答案）")}</div>
+          <div class="detail">${esc(e.date || "")} ／ 写真 ${(e.photoIds || []).length} 枚 ／ 問題 ${(e.items || []).length} 件
+          ${points ? `／ ${score} ／ ${points} 点` : ""}</div>
+        </div>
+        <span class="badge ${e.status === "draft" ? "draft" : ""}">${e.status === "draft" ? "下書き" : "確定"}</span>`;
+      btn.addEventListener("click", () => openExam(e.id));
+      list.appendChild(btn);
+    });
+  }
+  const st = await PhotoDB.stats();
+  const bar = document.getElementById("home-meter-bar");
+  bar.style.width = Math.min(100, st.bytes / CAPACITY_WARN_BYTES * 100) + "%";
+  document.getElementById("home-meter-text").textContent =
+    `写真 ${st.count} 枚（約 ${fmtBytes(st.bytes)}）をこの端末に保存しています。` +
+    (st.bytes > CAPACITY_WARN_BYTES ? " 量が多くなっています。設定から書き出し（バックアップ）をして、古い答案の写真を整理するのがおすすめです。" : "");
+}
+function openExam(id){
+  const e = state.exams.find(x => x.id === id);
+  if (!e) return;
+  if (e.status === "draft"){ startEditExam(id, (e.items || []).length ? "confirm" : "add"); }
+  else { currentExamId = id; renderDetail(); showView("detail"); }
+}
+
+/* ================= 答案の編集（写真） ================= */
+let currentExamId = null;
+function currentExam(){ return state.exams.find(x => x.id === currentExamId) || null; }
+
+function startNewExam(){
+  const today = new Date();
+  const iso = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+  const e = { id: uid(), title:"", date: iso, status:"draft", photoIds:[], items:[], createdAt: Date.now(), updatedAt: Date.now() };
+  state.exams.push(e);
+  saveState();
+  startEditExam(e.id, "add");
+}
+function startEditExam(id, view){
+  currentExamId = id;
+  const e = currentExam();
+  document.getElementById("exam-title-input").value = e.title || "";
+  document.getElementById("exam-date-input").value = e.date || "";
+  renderPhotoThumbs();
+  if (view === "confirm"){ renderItems(); showView("confirm"); }
+  else showView("add");
+}
+function syncExamMeta(){
+  const e = currentExam(); if (!e) return;
+  e.title = document.getElementById("exam-title-input").value.trim();
+  e.date = document.getElementById("exam-date-input").value;
+  e.updatedAt = Date.now();
+  saveState();
+}
+async function renderPhotoThumbs(){
+  const e = currentExam();
+  const wrap = document.getElementById("photo-thumbs");
+  wrap.innerHTML = "";
+  objectUrls.forEach(u => URL.revokeObjectURL(u)); objectUrls = [];
+  for (const pid of (e ? e.photoIds : [])){
+    const rec = await PhotoDB.get(pid);
+    if (!rec) continue;
+    const url = URL.createObjectURL(rec.blob); objectUrls.push(url);
+    const div = document.createElement("div");
+    div.className = "thumb";
+    div.innerHTML = `<img src="${url}" alt="答案の写真">
+      <div class="ops"><button data-act="edit">編集</button><button data-act="del">削除</button></div>`;
+    div.querySelector('[data-act="edit"]').addEventListener("click", () => openEditorForExisting(pid));
+    div.querySelector('[data-act="del"]').addEventListener("click", async () => {
+      if (!confirm("この写真を消しますか？")) return;
+      e.photoIds = e.photoIds.filter(x => x !== pid);
+      await PhotoDB.del(pid);
+      saveState(); renderPhotoThumbs();
+    });
+    wrap.appendChild(div);
+  }
+}
+let objectUrls = [];
+
+/* ================= 写真エディタ ================= */
+const Editor = {
+  canvas: null, ctx: null, mode: "mask", undoStack: [], sel: null, onDone: null,
+  init(){
+    this.canvas = document.getElementById("editor-canvas");
+    this.ctx = this.canvas.getContext("2d");
+    const pos = ev => {
+      const r = this.canvas.getBoundingClientRect();
+      const x = (ev.clientX - r.left) * this.canvas.width / r.width;
+      const y = (ev.clientY - r.top) * this.canvas.height / r.height;
+      return { x: Math.max(0, Math.min(this.canvas.width, x)), y: Math.max(0, Math.min(this.canvas.height, y)) };
+    };
+    this.canvas.addEventListener("pointerdown", ev => {
+      this.sel = { a: pos(ev), b: pos(ev) };
+      this.canvas.setPointerCapture(ev.pointerId);
+    });
+    this.canvas.addEventListener("pointermove", ev => {
+      if (!this.sel) return;
+      this.sel.b = pos(ev);
+      this.redrawWithSel();
+    });
+    const finish = () => {
+      if (!this.sel) return;
+      const { a, b } = this.sel;
+      const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+      const w = Math.abs(a.x - b.x), h = Math.abs(a.y - b.y);
+      this.sel = null;
+      // 選択枠の描画を取り除き、素の画像に戻してから操作を適用する
+      if (this._snap){ this.ctx.drawImage(this._snap, 0, 0); this._snap = null; }
+      if (w < 8 || h < 8) return;
+      this.pushUndo();
+      if (this.mode === "mask"){
+        this.ctx.fillStyle = "#000";
+        this.ctx.fillRect(x, y, w, h);
+      } else { // crop
+        const src = document.createElement("canvas");
+        src.width = this.canvas.width; src.height = this.canvas.height;
+        src.getContext("2d").drawImage(this.canvas, 0, 0);
+        this.canvas.width = Math.round(w); this.canvas.height = Math.round(h);
+        this.ctx.drawImage(src, x, y, w, h, 0, 0, w, h);
+      }
+    };
+    this.canvas.addEventListener("pointerup", finish);
+    this.canvas.addEventListener("pointercancel", () => { this.sel = null; this.redraw(); });
+  },
+  pushUndo(){
+    if (this.undoStack.length >= 6) this.undoStack.shift();
+    const c = document.createElement("canvas");
+    c.width = this.canvas.width; c.height = this.canvas.height;
+    c.getContext("2d").drawImage(this.canvas, 0, 0);
+    this.undoStack.push(c);
+  },
+  undo(){
+    const prev = this.undoStack.pop();
+    if (!prev){ toast("これ以上戻せません"); return; }
+    this.canvas.width = prev.width; this.canvas.height = prev.height;
+    this.ctx.drawImage(prev, 0, 0);
+  },
+  rotate(){
+    this.pushUndo();
+    const src = document.createElement("canvas");
+    src.width = this.canvas.width; src.height = this.canvas.height;
+    src.getContext("2d").drawImage(this.canvas, 0, 0);
+    this.canvas.width = src.height; this.canvas.height = src.width;
+    this.ctx.save();
+    this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+    this.ctx.rotate(Math.PI / 2);
+    this.ctx.drawImage(src, -src.width / 2, -src.height / 2);
+    this.ctx.restore();
+  },
+  redraw(){ /* canvas はそのまま表示される。選択枠の再描画用にスナップから戻す */ 
+    if (this._snap){ this.ctx.drawImage(this._snap, 0, 0); this._snap = null; }
+  },
+  redrawWithSel(){
+    if (!this._snap){
+      this._snap = document.createElement("canvas");
+      this._snap.width = this.canvas.width; this._snap.height = this.canvas.height;
+      this._snap.getContext("2d").drawImage(this.canvas, 0, 0);
+    } else {
+      this.ctx.drawImage(this._snap, 0, 0);
+    }
+    const { a, b } = this.sel;
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    const w = Math.abs(a.x - b.x), h = Math.abs(a.y - b.y);
+    this.ctx.save();
+    this.ctx.strokeStyle = "#0f766e"; this.ctx.lineWidth = Math.max(2, this.canvas.width / 200);
+    this.ctx.setLineDash([10, 6]);
+    this.ctx.strokeRect(x, y, w, h);
+    if (this.mode === "mask"){ this.ctx.fillStyle = "rgba(0,0,0,.45)"; this.ctx.fillRect(x, y, w, h); }
+    this.ctx.restore();
+  },
+  open(sourceCanvas, onDone){
+    this.undoStack = []; this.sel = null; this._snap = null; this.onDone = onDone;
+    this.canvas.width = sourceCanvas.width; this.canvas.height = sourceCanvas.height;
+    this.ctx.drawImage(sourceCanvas, 0, 0);
+    document.getElementById("editor-modal").classList.add("open");
+  },
+  close(){ document.getElementById("editor-modal").classList.remove("open"); },
+  async apply(){
+    const blob = await canvasToBlob(this.canvas, 0.85);
+    this.close();
+    if (this.onDone) this.onDone(blob, this.canvas.width, this.canvas.height);
+  },
+};
+async function openEditorForNewFile(file){
+  const { img, url } = await loadImageFromFile(file);
+  const c = drawScaledToCanvas(img, MAX_EDGE);
+  URL.revokeObjectURL(url);
+  Editor.open(c, async (blob, w, h) => {
+    const e = currentExam(); if (!e) return;
+    const id = uid();
+    await PhotoDB.put({ id, blob, w, h, bytes: blob.size, createdAt: Date.now() });
+    e.photoIds.push(id);
+    e.updatedAt = Date.now();
+    saveState(); renderPhotoThumbs();
+    toast("写真を保存しました");
+  });
+}
+async function openEditorForExisting(photoId){
+  const rec = await PhotoDB.get(photoId);
+  if (!rec) return;
+  const { img, url } = await loadImageFromFile(rec.blob);
+  const c = document.createElement("canvas");
+  c.width = rec.w; c.height = rec.h;
+  c.getContext("2d").drawImage(img, 0, 0);
+  URL.revokeObjectURL(url);
+  Editor.open(c, async (blob, w, h) => {
+    await PhotoDB.put({ id: photoId, blob, w, h, bytes: blob.size, createdAt: rec.createdAt });
+    renderPhotoThumbs();
+    toast("写真を更新しました");
+  });
+}
+
+/* ================= 確認・修正（問題ごとの入力） ================= */
+function newItem(no){
+  return { id: uid(), no: String(no ?? ""), text:"", points:"", score:"", mark:"",
+    myAnswer:"", steps:"", unitId:"", causes:[], causeNote:"", firstBadLine:"",
+    correctAnswer:"", teacherComment:"" };
+}
+function renderItems(){
+  const e = currentExam(); if (!e) return;
+  const wrap = document.getElementById("items-wrap");
+  wrap.innerHTML = "";
+  if (!e.items.length) e.items.push(newItem(1));
+  e.items.forEach((it, idx) => wrap.appendChild(itemCard(it, idx)));
+  updateSums();
+}
+function itemCard(it, idx){
+  const e = currentExam();
+  const div = document.createElement("div");
+  div.className = "item-card";
+  div.dataset.itemId = it.id;
+  const showCauses = it.mark === "batsu" || it.mark === "sankaku";
+  div.innerHTML = `
+    <div class="head">
+      <span class="no">問 ${esc(it.no || idx + 1)}</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="icon-btn" data-act="del-item">この問題を消す</button>
+    </div>
+    <label class="f">問題番号</label>
+    <input type="text" class="f-no" value="${esc(it.no)}" placeholder="例：1、(2)、大問2">
+    <label class="f">問題文（任意）</label>
+    <textarea class="f-text" placeholder="問題文を書いておくと、あとで見返しやすくなります">${esc(it.text)}</textarea>
+    <div class="row3">
+      <div><label class="f">配点</label><input type="number" class="f-points" inputmode="numeric" min="0" value="${esc(it.points)}" placeholder="10"></div>
+      <div><label class="f">得点</label><input type="number" class="f-score" inputmode="numeric" min="0" value="${esc(it.score)}" placeholder="0"></div>
+      <div><label class="f">単元</label>
+        <select class="f-unit">
+          <option value="">（選ぶ）</option>
+          ${UNITS.map(u => `<option value="${u.id}" ${u.id === it.unitId ? "selected" : ""}>${u.grade} ${esc(u.name)}</option>`).join("")}
+        </select></div>
+    </div>
+    <label class="f">○×△</label>
+    <div class="seg">
+      <button data-mark="maru" class="${it.mark === "maru" ? "sel-maru" : ""}">○</button>
+      <button data-mark="batsu" class="${it.mark === "batsu" ? "sel-batsu" : ""}">×</button>
+      <button data-mark="sankaku" class="${it.mark === "sankaku" ? "sel-sankaku" : ""}">△</button>
+    </div>
+    <label class="f">自分の答え</label>
+    <input type="text" class="f-myanswer" value="${esc(it.myAnswer)}" placeholder="例：x=3">
+    <label class="f">途中式（任意。1行に1ステップ）</label>
+    <textarea class="f-steps" placeholder="途中式を書いておくと、どこで間違えたかを見つけやすくなります">${esc(it.steps)}</textarea>
+    <div class="causes-block ${showCauses ? "" : "hidden"}">
+      <label class="f">間違えた原因（複数えらべます）</label>
+      <div class="chips">
+        ${CAUSES.map(c => `<label class="chip"><input type="checkbox" class="f-cause" value="${esc(c)}" ${it.causes.includes(c) ? "checked" : ""}>${esc(c)}</label>`).join("")}
+      </div>
+      <label class="f">原因の根拠（任意）</label>
+      <input type="text" class="f-causenote" value="${esc(it.causeNote)}" placeholder="例：移項で符号を変え忘れた">
+      <label class="f">最初に間違えた行（任意）</label>
+      <input type="number" class="f-firstbad" inputmode="numeric" min="1" value="${esc(it.firstBadLine)}" placeholder="途中式の行番号">
+    </div>
+    <label class="f">正しい答え（任意）</label>
+    <input type="text" class="f-correct" value="${esc(it.correctAnswer)}" placeholder="例：x=5">
+    <label class="f">先生の赤ペンコメント（任意）</label>
+    <input type="text" class="f-teacher" value="${esc(it.teacherComment)}" placeholder="例：単位を書くこと">
+  `;
+  const bind = (sel, key, ev = "input") => {
+    div.querySelector(sel).addEventListener(ev, evObj => { it[key] = evObj.target.value; touchExam(); });
+  };
+  bind(".f-no", "no"); bind(".f-text", "text"); bind(".f-myanswer", "myAnswer");
+  bind(".f-steps", "steps"); bind(".f-causenote", "causeNote"); bind(".f-correct", "correctAnswer");
+  bind(".f-teacher", "teacherComment");
+  div.querySelector(".f-points").addEventListener("input", ev => { it.points = ev.target.value; touchExam(); updateSums(); });
+  div.querySelector(".f-score").addEventListener("input", ev => { it.score = ev.target.value; touchExam(); updateSums(); });
+  div.querySelector(".f-firstbad").addEventListener("input", ev => { it.firstBadLine = ev.target.value; touchExam(); });
+  div.querySelector(".f-unit").addEventListener("change", ev => { it.unitId = ev.target.value; touchExam(); });
+  div.querySelectorAll(".f-cause").forEach(cb => cb.addEventListener("change", () => {
+    it.causes = [...div.querySelectorAll(".f-cause:checked")].map(x => x.value);
+    touchExam();
+  }));
+  div.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    it.mark = it.mark === b.dataset.mark ? "" : b.dataset.mark;
+    if (it.mark === "maru" && it.points !== "") { it.score = it.points; }
+    if (it.mark === "batsu") { it.score = "0"; }
+    touchExam();
+    renderItems();
+  }));
+  div.querySelector('[data-act="del-item"]').addEventListener("click", () => {
+    if (!confirm("この問題を消しますか？")) return;
+    e.items = e.items.filter(x => x.id !== it.id);
+    touchExam(); renderItems();
+  });
+  return div;
+}
+function touchExam(){
+  const e = currentExam(); if (!e) return;
+  e.updatedAt = Date.now();
+  saveState();
+}
+function updateSums(){
+  const e = currentExam(); if (!e) return;
+  const { points, score } = examScore(e);
+  document.getElementById("sum-points").textContent = points;
+  document.getElementById("sum-score").textContent = score;
+}
+
+/* ================= 答案の詳細（再表示） ================= */
+async function renderDetail(){
+  const e = currentExam(); if (!e) return;
+  document.getElementById("detail-title").textContent = e.title || "（名前なしの答案）";
+  const { points, score } = examScore(e);
+  document.getElementById("detail-meta").textContent =
+    `${e.date || ""} ／ ${e.status === "draft" ? "下書き" : "確定"} ／ 写真 ${(e.photoIds || []).length} 枚 ／ 問題 ${(e.items || []).length} 件` +
+    (points ? ` ／ ${score} ／ ${points} 点` : "");
+  const pw = document.getElementById("detail-photos");
+  pw.innerHTML = "";
+  objectUrls.forEach(u => URL.revokeObjectURL(u)); objectUrls = [];
+  for (const pid of (e.photoIds || [])){
+    const rec = await PhotoDB.get(pid);
+    if (!rec) continue;
+    const url = URL.createObjectURL(rec.blob); objectUrls.push(url);
+    const img = document.createElement("img");
+    img.className = "detail-photo"; img.src = url; img.alt = "答案の写真";
+    pw.appendChild(img);
+  }
+  const iw = document.getElementById("detail-items");
+  iw.innerHTML = "";
+  (e.items || []).forEach((it, idx) => {
+    const unit = UNIT_BY_ID[it.unitId];
+    const div = document.createElement("div");
+    div.className = "item-card";
+    div.innerHTML = `
+      <div class="head">
+        ${it.mark ? `<span class="mark-symbol ${it.mark}">${MARKS[it.mark]}</span>` : ""}
+        <span class="no">問 ${esc(it.no || idx + 1)}</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="detail" style="color:var(--sub)">${it.points !== "" ? `配点 ${esc(it.points)}` : ""}${it.score !== "" ? ` ／ 得点 ${esc(it.score)}` : ""}</span>
+      </div>
+      ${it.text ? `<p style="white-space:pre-wrap;margin:8px 0">${esc(it.text)}</p>` : ""}
+      ${it.myAnswer ? `<p style="margin:6px 0">自分の答え：<strong>${esc(it.myAnswer)}</strong>${it.correctAnswer ? ` ／ 正しい答え：<strong>${esc(it.correctAnswer)}</strong>` : ""}</p>` : ""}
+      ${it.steps ? `<p class="note" style="white-space:pre-wrap">途中式：\n${esc(it.steps)}</p>` : ""}
+      <div class="kv">
+        ${unit ? `<span class="tag">${unit.grade} ${esc(unit.name)}</span>` : ""}
+        ${(it.causes || []).map(c => `<span class="tag">${esc(c)}</span>`).join("")}
+      </div>
+      ${it.causeNote ? `<p class="note">根拠：${esc(it.causeNote)}${it.firstBadLine ? `（最初に間違えた行：${esc(it.firstBadLine)}行目）` : ""}</p>` : ""}
+      ${it.teacherComment ? `<p class="note">先生のコメント：${esc(it.teacherComment)}</p>` : ""}
+    `;
+    iw.appendChild(div);
+  });
+  if (!(e.items || []).length)
+    iw.innerHTML = `<div class="empty">問題がまだ入力されていません。「問題を編集する」から追加できます。</div>`;
+}
+
+/* ================= 設定 ================= */
+function applyAppearance(){
+  const s = state.settings;
+  document.documentElement.dataset.theme = s.dark ? "dark" : "light";
+  document.documentElement.style.setProperty("--fs", s.fontSize === "small" ? "15px" : s.fontSize === "large" ? "18px" : "16px");
+}
+async function renderSettings(){
+  document.getElementById("set-name").value = state.profile.name || "";
+  document.getElementById("set-grade").value = state.profile.grade || "中2";
+  document.getElementById("set-font").value = state.settings.fontSize;
+  document.getElementById("set-rate").value = String(state.settings.speechRate);
+  document.getElementById("set-dark").checked = !!state.settings.dark;
+  const st = await PhotoDB.stats();
+  const textBytes = (localStorage.getItem(STORE_KEY) || "").length;
+  const total = st.bytes + textBytes;
+  document.getElementById("meter-bar").style.width = Math.min(100, total / CAPACITY_WARN_BYTES * 100) + "%";
+  document.getElementById("meter-detail").textContent =
+    `写真 ${st.count} 枚（約 ${fmtBytes(st.bytes)}）／ 記録データ 約 ${fmtBytes(textBytes)} ／ 合計 約 ${fmtBytes(total)}` +
+    (total > CAPACITY_WARN_BYTES ? "。量が多くなっています。書き出しをしてから、古い答案の写真を整理するのがおすすめです。" : "。");
+}
+
+/* ================= 書き出し・読み込み・全削除 ================= */
+function blobToDataUrl(blob){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+async function exportData(){
+  const photos = {};
+  for (const rec of await PhotoDB.all()) photos[rec.id] = { dataUrl: await blobToDataUrl(rec.blob), w: rec.w, h: rec.h };
+  const payload = { app: "TripFix", version: 1, exportedAt: new Date().toISOString(), state, photos };
+  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const d = new Date();
+  a.download = `tripfix-backup-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("書き出しました");
+}
+async function importData(file){
+  let payload;
+  try { payload = JSON.parse(await file.text()); }
+  catch(e){ toast("ファイルが読めませんでした"); return; }
+  if (!payload || payload.app !== "TripFix" || !payload.state){ toast("TripFix のバックアップではないようです"); return; }
+  if (!confirm("今のデータを、読み込んだバックアップで置き換えますか？")) return;
+  state = Object.assign(defaultState(), payload.state);
+  await PhotoDB.clear();
+  for (const [id, p] of Object.entries(payload.photos || {})){
+    const blob = await (await fetch(p.dataUrl)).blob();
+    await PhotoDB.put({ id, blob, w: p.w, h: p.h, bytes: blob.size, createdAt: Date.now() });
+  }
+  saveState(); applyAppearance(); renderSettings(); renderHome();
+  toast("読み込みました");
+}
+
+/* ================= イベントの配線 ================= */
+function wire(){
+  document.getElementById("btn-home").addEventListener("click", () => showView("home"));
+  document.getElementById("btn-settings").addEventListener("click", () => showView("settings"));
+  document.getElementById("btn-settings-home").addEventListener("click", () => showView("home"));
+  document.getElementById("btn-new-exam").addEventListener("click", startNewExam);
+
+  document.getElementById("exam-title-input").addEventListener("input", syncExamMeta);
+  document.getElementById("exam-date-input").addEventListener("change", syncExamMeta);
+  document.getElementById("photo-file").addEventListener("change", async ev => {
+    const f = ev.target.files[0];
+    ev.target.value = "";
+    if (f) { try { await openEditorForNewFile(f); } catch(e){ toast("写真が開けませんでした"); } }
+  });
+  document.getElementById("btn-to-confirm").addEventListener("click", () => { syncExamMeta(); renderItems(); showView("confirm"); });
+  document.getElementById("btn-add-back").addEventListener("click", () => { syncExamMeta(); showView("home"); });
+  document.getElementById("btn-discard-exam").addEventListener("click", () => deleteExam(true));
+
+  document.getElementById("btn-add-item").addEventListener("click", () => {
+    const e = currentExam(); if (!e) return;
+    e.items.push(newItem(e.items.length + 1));
+    touchExam(); renderItems();
+  });
+  document.getElementById("btn-to-photos").addEventListener("click", () => { renderPhotoThumbs(); showView("add"); });
+  document.getElementById("btn-confirm-home").addEventListener("click", () => showView("home"));
+  document.getElementById("btn-finalize").addEventListener("click", () => {
+    const e = currentExam(); if (!e) return;
+    e.status = "done"; touchExam();
+    renderDetail(); showView("detail");
+    toast("答案を保存しました");
+  });
+
+  document.getElementById("btn-edit-items").addEventListener("click", () => startEditExam(currentExamId, "confirm"));
+  document.getElementById("btn-edit-photos").addEventListener("click", () => startEditExam(currentExamId, "add"));
+  document.getElementById("btn-detail-home").addEventListener("click", () => showView("home"));
+  document.getElementById("btn-delete-exam").addEventListener("click", () => deleteExam(false));
+
+  document.getElementById("ed-mode-mask").addEventListener("click", () => setEdMode("mask"));
+  document.getElementById("ed-mode-crop").addEventListener("click", () => setEdMode("crop"));
+  document.getElementById("ed-rotate").addEventListener("click", () => Editor.rotate());
+  document.getElementById("ed-undo").addEventListener("click", () => Editor.undo());
+  document.getElementById("ed-apply").addEventListener("click", () => Editor.apply());
+  document.getElementById("ed-cancel").addEventListener("click", () => Editor.close());
+
+  document.getElementById("set-name").addEventListener("input", ev => { state.profile.name = ev.target.value; saveState(); });
+  document.getElementById("set-grade").addEventListener("change", ev => { state.profile.grade = ev.target.value; saveState(); });
+  document.getElementById("set-font").addEventListener("change", ev => { state.settings.fontSize = ev.target.value; saveState(); applyAppearance(); });
+  document.getElementById("set-rate").addEventListener("change", ev => { state.settings.speechRate = parseFloat(ev.target.value); saveState(); });
+  document.getElementById("set-dark").addEventListener("change", ev => { state.settings.dark = ev.target.checked; saveState(); applyAppearance(); });
+  document.getElementById("btn-export").addEventListener("click", exportData);
+  document.getElementById("import-file").addEventListener("change", async ev => {
+    const f = ev.target.files[0]; ev.target.value = "";
+    if (f) importData(f);
+  });
+  document.getElementById("btn-wipe").addEventListener("click", async () => {
+    if (!confirm("答案・写真・設定のすべてを消しますか？ この操作は元に戻せません。")) return;
+    if (!confirm("本当にすべて消してよいですか？")) return;
+    state = defaultState();
+    localStorage.removeItem(STORE_KEY); localStorage.removeItem(BACKUP_KEY);
+    await PhotoDB.clear();
+    saveState(); applyAppearance(); renderSettings();
+    toast("すべてのデータを消しました");
+  });
+}
+function setEdMode(mode){
+  Editor.mode = mode;
+  document.getElementById("ed-mode-mask").classList.toggle("sel", mode === "mask");
+  document.getElementById("ed-mode-crop").classList.toggle("sel", mode === "crop");
+}
+async function deleteExam(fromAdd){
+  const e = currentExam(); if (!e) return;
+  if (!confirm("この答案と、その写真をすべて消しますか？")) return;
+  for (const pid of (e.photoIds || [])) await PhotoDB.del(pid);
+  state.exams = state.exams.filter(x => x.id !== e.id);
+  saveState();
+  currentExamId = null;
+  showView("home");
+  toast("答案を消しました");
+}
+
+/* ================= 起動 ================= */
+loadState();
+applyAppearance();
+Editor.init();
+wire();
+PhotoDB.cleanupOrphans().catch(() => {});
+showView("home");
+
+/* テスト用フック */
+window.__tf = { get state(){ return state; }, PhotoDB, UNITS, CAUSES, startNewExam, renderItems, examScore };
+</script>
+</body>
+</html>
