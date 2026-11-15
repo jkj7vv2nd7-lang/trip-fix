@@ -153,6 +153,9 @@ html[data-theme="dark"] .paper{background:#fdfcf8}
 .paper .ans-steps{color:#333;line-height:1.7;margin:4px 0 0}
 .sheet-answers .prob{margin:0 0 6px}
 .sheet-answers .ans-steps{line-height:1.38;font-size:.88rem}
+.paper .prow{display:flex;gap:8mm;margin:0 0 10px}
+.paper .pcol{flex:1;min-width:0}
+.paper .pcol .prob{margin:0}
 .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0 0 16px}
 .map-chip{text-align:left;border-radius:12px;padding:10px 12px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
 .map-chip .u-name{font-weight:700;display:block}
@@ -165,10 +168,10 @@ html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
 .rep-evidence{background:var(--chip);border-radius:8px;padding:8px 10px;font-size:.9rem;margin-top:8px}
 /* 用紙プレビュー（画面）：固定ページを画面幅に合わせて縮小表示する */
 .pv-wrap{position:relative;overflow:hidden;margin:0 0 14px;border:1px solid var(--line);border-radius:6px;background:#fff}
-.pv-page{position:absolute;left:0;top:0;width:194mm;height:196mm;transform-origin:top left;background:#fff;color:#222;padding:4mm;margin:0;border:none;box-shadow:none;border-radius:0}
+.pv-page{position:absolute;left:0;top:0;width:188mm;height:196mm;transform-origin:top left;background:#fff;color:#222;padding:4mm;margin:0;border:none;box-shadow:none;border-radius:0}
 #print-area{display:none}
 @media print{
-  @page{size:A4;margin:12mm}
+  @page{size:A4;margin:15mm}
   body>*{display:none !important}
   body>#print-area{display:block !important}
   #print-area .paper{border:none;box-shadow:none;border-radius:0;padding:0;margin:0}
@@ -531,7 +534,7 @@ html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
         ・補強プリントの問題は、このアプリが新しく作るオリジナル問題だけです。撮影した問題そのものは載せません。<br>
         ・解説には間違いが含まれる可能性があります。おかしいと思ったら、各画面の「この解説は正しくないかも」から知らせてください（記録は端末内に残ります）。
       </p>
-      <p class="note" style="margin-top:10px">版：TripFix 1.1.2（印刷レイアウト v4）</p>
+      <p class="note" style="margin-top:10px">版：TripFix 1.1.3（印刷レイアウト v5）</p>
     </div>
     <div class="btn-row">
       <button class="btn sub" id="btn-settings-home">ホームへ戻る</button>
@@ -1696,7 +1699,7 @@ const TYPES = [];
 function defType(t){ TYPES.push(t); }
 
 defType({
-  id: "seifu-mix", unit: "seifu", name: "正負の数の四則計算", level: 1,
+  id: "seifu-mix", cols: 2, unit: "seifu", name: "正負の数の四則計算", level: 1,
   gen(R){
     const form = R.int(0, 2);
     let a, b, c, expr, val;
@@ -1709,7 +1712,7 @@ defType({
   verify(p){ return approx(evalExpr(p.expr), p.val); },
 });
 defType({
-  id: "seifu-pow", unit: "seifu", name: "累乗と絶対値", level: 1,
+  id: "seifu-pow", cols: 2, unit: "seifu", name: "累乗と絶対値", level: 1,
   gen(R){
     const form = R.int(0, 2);
     if (form === 0){ const a = R.int(2, 9); const neg = R.chance(0.5); const expr = neg ? `(-${a})^2` : `${a}^2`; const val = a * a; return { expr, a, neg, text: `計算しなさい。　<span class="math">${neg ? num(-a) : a}<sup>2</sup></span>`, answer: String(val), steps: [`${a}×${a}＝${val} です。かっこがあるときは、かっこの中全体を2回かけます。`], val }; }
@@ -1720,7 +1723,7 @@ defType({
   verify(p){ if (p.expr) return approx(evalExpr(p.expr), p.val); return p.val === Math.abs(p.a) + p.b; },
 });
 defType({
-  id: "moji-value", unit: "moji", name: "式の値", level: 1,
+  id: "moji-value", cols: 2, unit: "moji", name: "式の値", level: 1,
   gen(R, twist){
     const a = R.nz(-9, 9), b = R.int(-9, 9);
     let xv, xDisp, val;
@@ -1731,7 +1734,7 @@ defType({
   verify(p){ return approx(evalExpr(`${p.a}*x+${p.b}`, { x: p.xv }), p.val); },
 });
 defType({
-  id: "moji-add", unit: "moji", name: "一次式の加減", level: 1,
+  id: "moji-add", cols: 2, unit: "moji", name: "一次式の加減", level: 1,
   gen(R){
     const a = R.nz(-9, 9), b = R.int(-9, 9), c = R.nz(-9, 9), d = R.int(-9, 9);
     const minus = R.chance(0.5);
@@ -1745,7 +1748,7 @@ defType({
   verify(p){ return [3, -2].every(x => approx(evalExpr(p.expr, { x }), evalExpr(p.ansExpr, { x }))); },
 });
 defType({
-  id: "ichiho-basic", unit: "ichiho", name: "一次方程式", level: 1,
+  id: "ichiho-basic", cols: 2, unit: "ichiho", name: "一次方程式", level: 1,
   gen(R){
     const x0 = R.nz(-8, 8);
     const a = R.nz(-6, 6); let c = R.nz(-6, 6); if (c === a) c = a + 1;
@@ -1756,7 +1759,7 @@ defType({
   verify(p){ return p.a * p.x0 + p.b === p.c * p.x0 + p.d; },
 });
 defType({
-  id: "ichiho-frac", unit: "ichiho", name: "分数・小数の方程式", level: 2,
+  id: "ichiho-frac", cols: 2, unit: "ichiho", name: "分数・小数の方程式", level: 2,
   gen(R, twist){
     if (twist){
       const a = R.pick([2, 4, 5, 8, 10]); const x0 = R.nz(-8, 8); const b = R.int(-9, 9);
@@ -1787,7 +1790,7 @@ defType({
   verify(p){ if (p.form === "sum") return p.small + p.big === p.total && p.big - p.small === p.diff; return p.price * p.n + p.change === p.paid; },
 });
 defType({
-  id: "shiki2-mono", unit: "shiki2", name: "単項式の乗除", level: 1,
+  id: "shiki2-mono", cols: 2, unit: "shiki2", name: "単項式の乗除", level: 1,
   gen(R){
     const a = R.nz(-6, 6), b = R.nz(-6, 6);
     const m = R.int(1, 3), n = R.int(0, 3), p = R.int(1, 3), q = R.int(0, 2);
@@ -1832,7 +1835,7 @@ defType({
   verify(p){ return p.x0 + p.y0 === p.total && approx(p.pa * p.x0 / 100 + p.pb * p.y0 / 100, p.pc * p.total / 100); },
 });
 defType({
-  id: "takoshiki-expand", unit: "takoshiki", name: "式の展開", level: 1,
+  id: "takoshiki-expand", cols: 2, unit: "takoshiki", name: "式の展開", level: 1,
   gen(R, twist){
     let text, expr, ansExpr, steps;
     if (twist){
@@ -1853,7 +1856,7 @@ defType({
   verify(p){ return [2, -3, 5].every(x => approx(evalExpr(p.expr, { x }), evalExpr(p.ansExpr, { x }))); },
 });
 defType({
-  id: "takoshiki-factor", unit: "takoshiki", name: "因数分解", level: 2,
+  id: "takoshiki-factor", cols: 2, unit: "takoshiki", name: "因数分解", level: 2,
   gen(R, twist){
     if (twist){
       const a = R.int(2, 9);
@@ -1888,7 +1891,7 @@ function simpRad(n){ // √n = k√m の形に
 function radStr(k, m){ if (m === 1) return String(k); return `${k === 1 ? "" : k}${ROOT(m)}`; }
 
 defType({
-  id: "heihokon-calc", unit: "heihokon", name: "根号の計算", level: 1,
+  id: "heihokon-calc", cols: 2, unit: "heihokon", name: "根号の計算", level: 1,
   gen(R){
     const form = R.int(0, 2);
     if (form === 2){
@@ -1910,7 +1913,7 @@ defType({
   },
 });
 defType({
-  id: "heihokon-rationalize", unit: "heihokon", name: "分母の有理化", level: 2,
+  id: "heihokon-rationalize", cols: 2, unit: "heihokon", name: "分母の有理化", level: 2,
   gen(R){
     const b = R.pick([2, 3, 5, 6, 7, 10, 11, 13]);
     const a = R.int(1, 9);
@@ -1921,7 +1924,7 @@ defType({
   verify(p){ return approx(p.a / Math.sqrt(p.b), p.ap * Math.sqrt(p.b) / p.bp) && gcd(p.ap, p.bp) === 1; },
 });
 defType({
-  id: "nijiho-factor", unit: "nijiho", name: "因数分解で解く二次方程式", level: 1,
+  id: "nijiho-factor", cols: 2, unit: "nijiho", name: "因数分解で解く二次方程式", level: 1,
   gen(R){
     const p = R.nz(-8, 8); let q = R.nz(-8, 8);
     if (p === q) q = q + 1;
@@ -1935,7 +1938,7 @@ defType({
   },
 });
 defType({
-  id: "nijiho-formula", unit: "nijiho", name: "解の公式", level: 2,
+  id: "nijiho-formula", cols: 2, unit: "nijiho", name: "解の公式", level: 2,
   gen(R){
     if (R.chance(0.5)){
       // 根号の解：判別式が k²m 型
@@ -1963,7 +1966,7 @@ defType({
   },
 });
 defType({
-  id: "hirei", unit: "hirei", name: "比例・反比例の式", level: 1,
+  id: "hirei", cols: 2, unit: "hirei", name: "比例・反比例の式", level: 1,
   gen(R, twist){
     if (twist){
       const a = R.pick([6, 8, 10, 12, 18, 20, 24, 30, 36]);
@@ -1981,7 +1984,7 @@ defType({
   verify(p){ if (p.form === "inv") return p.x0 * p.y0 === p.a; return approx(p.a * p.x0, p.y0); },
 });
 defType({
-  id: "ichiji-points", unit: "ichiji", name: "2点を通る直線の式", level: 2,
+  id: "ichiji-points", cols: 2, unit: "ichiji", name: "2点を通る直線の式", level: 2,
   gen(R){
     const x1 = R.int(-4, 3); const dx = R.pick([1, 2, 3, 4]);
     const x2 = x1 + dx;
@@ -2012,7 +2015,7 @@ defType({
   verify(p){ return p.a * p.x1 + p.b === p.y1 && p.a * p.x2 + p.b === p.y2; },
 });
 defType({
-  id: "nijikan", unit: "nijikan", name: "二次関数の値", level: 1,
+  id: "nijikan", cols: 2, unit: "nijikan", name: "二次関数の値", level: 1,
   gen(R, twist){
     const a = R.pick([1, 2, 3, -1, -2]);
     if (twist){
@@ -2209,20 +2212,34 @@ function updatePrintNote(){
 function sheetHTML(ws){
   const date = new Date(ws.createdAt);
   const head = `<div class="p-head"><span>名前：＿＿＿＿＿＿＿＿</span><span>${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日</span><span>目安 ${ws.problems.length * 2} 分</span><span>${esc(ws.label)}</span></div>`;
-  const probs = ws.problems.map((p, i) => `
+  // 全問が「2段組み向き」の型なら2段組み（計算系など短い問題）。図形・文章題は1段のまま
+  const two = ws.problems.length > 1 && ws.problems.every(p => {
+    const t = TYPES.find(x => x.id === p.typeId) || TYPES.find(x => x.name === p.typeName);
+    return t && t.cols === 2;
+  });
+  const probHtml = (p, i) => `
     <div class="prob">
       <div><span class="p-no">(${i + 1})</span><span class="p-type">${esc(p.typeName)}${p.twist ? "・ひねり" : ""}${p.repeat ? "・前に間違えた型です" : ""}</span></div>
       <div>${p.text}</div>
       ${p.svg ? `<figure>${p.svg}</figure>` : ""}
       <div class="work"></div><div class="work"></div><div class="work"></div>
-    </div>`).join("");
-  const answers = ws.problems.map((p, i) => `
+    </div>`;
+  const ansHtml = (p, i) => `
     <div class="prob">
       <div><span class="p-no">(${i + 1})</span> <b>${p.answer}</b></div>
       <p class="ans-steps">${(p.steps || []).join("<br>")}</p>
-    </div>`).join("");
-  return `<div class="paper sheet-problems"><h3>${esc(ws.title || "TripFix 補強プリント")}</h3>${head}${probs}<div class="p-foot">TripFix ・ 印刷レイアウト v4</div></div>
-  <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}<div class="p-foot">TripFix ・ 印刷レイアウト v4</div></div>`;
+    </div>`;
+  const group = items => {
+    if (!two) return items.join("");
+    const rows = [];
+    for (let i = 0; i < items.length; i += 2)
+      rows.push(`<div class="prow"><div class="pcol">${items[i]}</div><div class="pcol">${items[i + 1] || ""}</div></div>`);
+    return rows.join("");
+  };
+  const probs = group(ws.problems.map(probHtml));
+  const answers = group(ws.problems.map(ansHtml));
+  return `<div class="paper sheet-problems"><h3>${esc(ws.title || "TripFix 補強プリント")}</h3>${head}${probs}<div class="p-foot">TripFix ・ 印刷レイアウト v5</div></div>
+  <div class="paper sheet-answers"><h3>解答と解き方</h3>${head}${answers}<div class="p-foot">TripFix ・ 印刷レイアウト v5</div></div>`;
 }
 function currentWorksheet(){ return state.worksheets.find(w => w.id === currentWorksheetId) || null; }
 function makeSheet(){
@@ -2889,16 +2906,16 @@ window.__tf5 = { unitStats, unitStatusOf, buildReport, applyRepeats, finalTarget
    v4では塊の上限を185mmに置き、高さの固定はしない（固定すると箱ごと割れる）。
    iOSの日本語フォントは行高が大きめに出るため、余裕を持った上限にする。
    画面の用紙プレビューも同じ組みページを使い、画面幅へ縮小して見せる。 */
-const PRINT_LAYOUT_VERSION = "v4";
+const PRINT_LAYOUT_VERSION = "v5";
 const TF_BUDGET_MM = 185;
 const TF_PREVIEW_H_MM = 196;
 const TF_MM = 96 / 25.4;
 function paginateSheet(ws){
   const area = document.getElementById("print-area");
   const FOOT = `<div class="p-foot">TripFix ・ 印刷レイアウト ${PRINT_LAYOUT_VERSION}</div>`;
-  // 印刷幅（A4 210mm − 余白12mm×2 = 186mm）で実測する
+  // 印刷幅（A4 210mm − 余白15mm×2 = 180mm）で実測する
   area.innerHTML = `<div id="tf-probe">${sheetHTML(ws)}</div>`;
-  area.style.cssText = "display:block;position:absolute;left:-9999px;top:0;width:186mm;visibility:hidden";
+  area.style.cssText = "display:block;position:absolute;left:-9999px;top:0;width:180mm;visibility:hidden";
   const probe = area.querySelector("#tf-probe");
   for (const p of probe.querySelectorAll(".paper")) p.style.cssText = "padding:0;margin:0;border:none;box-shadow:none";
   const BUDGET = TF_BUDGET_MM * TF_MM - 30; // 塊の上限から版表示ぶんを引く(px)
@@ -2908,7 +2925,9 @@ function paginateSheet(ws){
     const headH = (h3 ? h3.offsetHeight + 4 : 0) + (head ? head.offsetHeight + 14 : 0);
     const title = h3 ? h3.outerHTML : "";
     const headHTML = head ? head.outerHTML : "";
-    const items = [...paper.querySelectorAll(".prob")].map(el => ({ html: el.outerHTML, h: el.offsetHeight + 12 }));
+    const items = [...paper.children]
+      .filter(el => el.classList.contains("prob") || el.classList.contains("prow"))
+      .map(el => ({ html: el.outerHTML, h: el.offsetHeight + 12 }));
     return { title, headHTML, headH, items };
   };
   const pack = (m, section) => {
@@ -2955,7 +2974,7 @@ function layoutSheetPreview(){
   for (const wrap of document.querySelectorAll("#sheet-preview .pv-wrap")){
     const page = wrap.querySelector(".pv-page");
     if (!page) continue;
-    const s = wrap.clientWidth / (194 * TF_MM);
+    const s = wrap.clientWidth / (188 * TF_MM);
     page.style.transform = `scale(${s})`;
     wrap.style.height = `${TF_PREVIEW_H_MM * TF_MM * s}px`;
   }
