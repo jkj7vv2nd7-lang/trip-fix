@@ -468,6 +468,10 @@ html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
         <option value="1.2">少し速く</option>
         <option value="1.4">速く</option>
       </select>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn sub" id="btn-tts-test">読み上げのテスト再生</button>
+      </div>
+      <p class="note">声と速さを確認できます。数式も、解説と同じ読み替えで読みます。実際の読み上げは、答案を記録したあとの「解説」画面で聞けます（間違えた問題の「解説を開く」から進みます）。</p>
       <label class="chip" style="margin-top:12px"><input type="checkbox" id="set-dark"> ダークモード</label>
     </div>
     <div class="card">
@@ -526,6 +530,7 @@ html[data-theme="dark"] .map-chip[data-status="done"]{background:#17352a}
         ・補強プリントの問題は、このアプリが新しく作るオリジナル問題だけです。撮影した問題そのものは載せません。<br>
         ・解説には間違いが含まれる可能性があります。おかしいと思ったら、各画面の「この解説は正しくないかも」から知らせてください（記録は端末内に残ります）。
       </p>
+      <p class="note" style="margin-top:10px">版：TripFix 1.1.1（印刷レイアウト v3）</p>
     </div>
     <div class="btn-row">
       <button class="btn sub" id="btn-settings-home">ホームへ戻る</button>
@@ -2943,6 +2948,38 @@ window.addEventListener("resize", layoutSheetPreview);
 const _showViewPV = showView;
 showView = function(name){ _showViewPV(name); if (name === "sheet") requestAnimationFrame(layoutSheetPreview); };
 window.__tfPrint = { printWorksheet, paginateSheet, buildSheetPreview, layoutSheetPreview, PRINT_LAYOUT_VERSION, TF_PAGE_H_MM };
+</script>
+
+
+<script>
+"use strict";
+/* ================= 設定：読み上げのテスト再生 ================= */
+const TTS_TEST_RAW = "これは読み上げのテストです。√2 + 1 や x^2 のような数式も読み上げます。1/2 は分数です。";
+let ttsTestPlaying = false;
+function setTtsTestLabel(){
+  document.getElementById("btn-tts-test").textContent = ttsTestPlaying ? "テスト再生を止める" : "読み上げのテスト再生";
+}
+function toggleTtsTest(){
+  if (!("speechSynthesis" in window)){ toast("この端末では読み上げが使えません"); return; }
+  if (ttsTestPlaying){
+    speechSynthesis.cancel();
+    ttsTestPlaying = false;
+    setTtsTestLabel();
+    return;
+  }
+  stopSpeech();
+  const u = new SpeechSynthesisUtterance(toSpeech(TTS_TEST_RAW));
+  u.lang = "ja-JP";
+  u.rate = state.settings.speechRate || 1;
+  ttsTestPlaying = true;
+  setTtsTestLabel();
+  const done = () => { ttsTestPlaying = false; setTtsTestLabel(); };
+  u.onend = done;
+  u.onerror = done;
+  speechSynthesis.speak(u);
+}
+document.getElementById("btn-tts-test").addEventListener("click", toggleTtsTest);
+window.__tfTts = { toggleTtsTest, TTS_TEST_RAW, get playing(){ return ttsTestPlaying; } };
 </script>
 </body>
 </html>
